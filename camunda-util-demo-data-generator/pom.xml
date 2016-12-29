@@ -80,36 +80,4 @@
 		</dependency>
 	</dependencies>
 
-	<repositories>
-		<repository>
-			<id>camunda-bpm-nexus</id>
-			<name>camunda BPM Maven Repository</name>
-			<url>https://app.camunda.com/nexus/content/groups/public</url>
-		</repository>
-	</repositories>
-
-	<licenses>
-		<license>
-			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-		</license>
-	</licenses>
-
-	<scm>
-		<url>https://github.com/camunda-consulting/camunda-util-demo-support</url>
-		<connection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-support.git</connection>
-		<developerConnection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-support.git</developerConnection>
-		<tag>HEAD</tag>
-	</scm>
-
-	<distributionManagement>
-		<snapshotRepository>
-			<id>camunda-nexus</id>
-			<url>https://app.camunda.com/nexus/content/repositories/camunda-consulting-snapshots/</url>
-		</snapshotRepository>
-		<repository>
-			<id>camunda-nexus</id>
-			<url>https://app.camunda.com/nexus/content/repositories/camunda-consulting/</url>
-		</repository>
-	</distributionManagement>
 </project>

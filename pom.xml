@@ -13,8 +13,8 @@
 		<artifactId>camunda-release-parent</artifactId>
 		<version>2.5</version>
 		<relativePath />
-    </parent>
-  
+	</parent>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<camunda.version>7.6.0</camunda.version>
@@ -34,7 +34,7 @@
 				<version>${camunda.version}</version>
 				<scope>import</scope>
 				<type>pom</type>
-			</dependency>			
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -54,9 +54,9 @@
 	</licenses>
 
 	<scm>
-		<url>https://github.com/camunda-consulting/camunda-util-demo-support</url>
-		<connection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-support.git</connection>
-		<developerConnection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-support.git</developerConnection>
+		<url>https://github.com/camunda-consulting/camunda-util-demo-data-generator</url>
+		<connection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-data-generator.git</connection>
+		<developerConnection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-data-generator.git</developerConnection>
 		<tag>HEAD</tag>
 	</scm>
 
