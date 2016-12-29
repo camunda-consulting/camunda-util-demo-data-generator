@@ -119,6 +119,8 @@ public class InvoiceProcessApplication extends ServletProcessApplication {
 
 That's it. You get automatically instances generated - if not more than 50 instances exist in history yet (to avoid new instances on every startup).
 
+See [insurance application showcase](https://github.com/camunda-consulting/camunda-showcase-versicherungsneuantrag/) for an example of using it.
+
 Environment Restrictions
 ------------------------
 
