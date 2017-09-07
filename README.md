@@ -87,6 +87,11 @@ Add this dependency to your project (available via Maven Central):
     <artifactId>camunda-util-demo-data-generator</artifactId>
     <version>0.4.0</version>    
   </dependency>
+  
+		<repository>
+			<id>camunda-consulting</id>
+			<url>https://app.camunda.com/nexus/content/repositories/camunda-consulting/</url>
+		</repository>
 ```
 
 Instrument your process definition XML for all processes where auto generation should be applied
