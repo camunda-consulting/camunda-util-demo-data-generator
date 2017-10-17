@@ -72,7 +72,7 @@ So you will have instances in the version before the latest version if you look 
 Build the camunda-demo-data-generator-webapp.war (in subfolder camunda-demo-data-generator-webapp) using Maven. Deploy it to your container, it works on any container (Wildfly, Tomcat, JBoss, ...).
 
 Once you deployed the application you can run it using
-[localhost:8080/camunda-demo-data-generator/](localhost:8080/camunda-demo-data-generator-webapp/). You might have to adjust the port.
+[localhost:8080/camunda-util-demo-data-generator/](localhost:8080/camunda-util-demo-data-generator-webapp/). You might have to adjust the port.
 
 
 ## Use Auto Generation
