@@ -98,9 +98,11 @@ Instrument your process definition XML for all processes where auto generation s
           <camunda:property value="14" name="simulateNumberOfDaysInPast"/>
           <camunda:property value="1000" name="simulateTimeBetweenStartsBusinessDaysMean"/>
           <camunda:property value="2000" name="simulateTimeBetweenStartsBusinessDaysSd"/>
+          <camunda:property value="true" name="runAlways"/>          
         </camunda:properties>
       </extensionElements>
 ```
+If `runAlways` is omitted or other than `true`, the data generation only runs once (by checking if there already exists at least one generated process instance).
 
 And add a @PostDeploy hook into your ProcessApplication class:
 ```

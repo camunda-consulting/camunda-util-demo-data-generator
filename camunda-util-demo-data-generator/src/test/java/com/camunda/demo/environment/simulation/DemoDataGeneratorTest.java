@@ -29,6 +29,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.camunda.demo.environment.DemoDataGenerator;
 import com.camunda.demo.environment.simulation.TimeAwareDemoGenerator;
 
 /**
@@ -50,9 +51,6 @@ public class DemoDataGeneratorTest {
     init(rule.getProcessEngine());
   }
 
-  /**
-   * Just tests if the process definition is deployable.
-   */
   @Test
   @Deployment(resources = "simulate.bpmn")
   public void testSimulationDrive() {
@@ -69,9 +67,35 @@ public class DemoDataGeneratorTest {
     // assertThat(pi).isEnded();
   }
   
-  /**
-   * Just tests if the process definition is deployable.
-   */
+  @Test
+  @Deployment(resources = {"simulate.bpmn", "runAlways.bpmn"})
+  public void testRunAlways() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("simulate") //
+        .numberOfDaysInPast(1) //
+        .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
+    generator.generateData();
+    long firstRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("simulate").count();
+
+    assertThat(firstRun > 0);
+    
+    generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("simulate") //
+        .numberOfDaysInPast(1) //
+        .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
+    generator.generateData();
+    long secondRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("simulate").count();
+    
+    assertEquals(firstRun, secondRun);
+    
+    DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
+    firstRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("runAlways").count();
+    assertThat(firstRun > 0);
+    DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
+    secondRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("runAlways").count();
+    assertThat(firstRun < secondRun);
+  }
+  
 //  @Test
   @Deployment(resources = {"InsuranceApplication.bpmn", "ApplicationCheck.cmmn"})
   public void testInsuranceApplicationWithCmmn() {

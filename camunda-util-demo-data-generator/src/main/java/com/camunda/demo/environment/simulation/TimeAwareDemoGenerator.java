@@ -2,7 +2,6 @@ package com.camunda.demo.environment.simulation;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,7 +21,10 @@ import org.camunda.bpm.engine.runtime.CaseInstance;
 import org.camunda.bpm.engine.runtime.EventSubscription;
 import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+
+import com.camunda.demo.environment.DemoDataGenerator;
 
 /**
  * Classloading: Currently everything is done as JavaScript - so no classes are
@@ -41,7 +43,7 @@ public class TimeAwareDemoGenerator {
   private StatisticalDistribution timeBetweenStartsWeekend;
 
   private DemoModelInstrumentator instrumentator;
-  
+
   private ProcessEngine engine;
 
   private Map<String, NormalDistribution> distributions = new HashMap<String, NormalDistribution>();
@@ -57,16 +59,16 @@ public class TimeAwareDemoGenerator {
 
   public TimeAwareDemoGenerator(ProcessEngine processEngine) {
     this.engine = processEngine;
-  }  
-
+  }
 
   public void generateData() {
     instrumentator = new DemoModelInstrumentator(engine, processApplicationReference);
-    instrumentator.tweakProcessDefinition(processDefinitionKey); // root process definition
-    if (additionalModelKeys!=null) {
+    instrumentator.tweakProcessDefinition(processDefinitionKey); // root process
+                                                                 // definition
+    if (additionalModelKeys != null) {
       instrumentator.addAdditionalModels(additionalModelKeys);
     }
-    
+
     instrumentator.deployTweakedModels();
 
     synchronized (engine) {
@@ -147,9 +149,9 @@ public class TimeAwareDemoGenerator {
   }
 
   protected void runSingleProcessInstance() {
-    ProcessInstance pi = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey);
+    ProcessInstance pi = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
+        Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
     driveProcessInstance(pi);
-
   }
 
   protected void driveProcessInstance(ProcessInstance pi) {
@@ -301,7 +303,7 @@ public class TimeAwareDemoGenerator {
       }
 
       ClockUtil.setCurrentTime(cal.getTime());
-      engine.getRuntimeService().createMessageCorrelation(eventSubscription.getEventName()).processInstanceId(pi.getId()).correlate();
+      engine.getRuntimeService().createMessageCorrelation(eventSubscription.getEventName()).processInstanceId(pi.getId()).correlateAllWithResult();
     }
     return false;
   }
