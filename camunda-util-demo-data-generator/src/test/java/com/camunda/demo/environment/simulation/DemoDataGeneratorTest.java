@@ -69,6 +69,19 @@ public class DemoDataGeneratorTest {
   }
 
   @Test
+  @Deployment(resources = "externalTask.bpmn")
+  public void testExternalTask() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("externalTask") //
+        .numberOfDaysInPast(1) //
+        .timeBetweenStartsBusinessDays(600.0, 100.0);
+    generator.generateData();
+
+    long runned = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished().processDefinitionKey("externalTask").count();
+    assert (runned > 100);
+  }
+
+  @Test
   @Deployment(resources = "boundaryMessage.bpmn")
   public void testMessageBoundary() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //

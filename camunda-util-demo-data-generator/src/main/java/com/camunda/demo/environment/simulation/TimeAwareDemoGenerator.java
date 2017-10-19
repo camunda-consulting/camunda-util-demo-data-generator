@@ -16,6 +16,8 @@ import java.util.Set;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
+import org.camunda.bpm.engine.externaltask.ExternalTask;
+import org.camunda.bpm.engine.externaltask.LockedExternalTask;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.history.HistoricCaseInstance;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
@@ -175,19 +177,27 @@ public class TimeAwareDemoGenerator {
   protected void driveProcessInstance(ProcessInstance pi) throws ReachedCurrentTimeException {
     Set<String> processInstancesAlreadyReachedCurrentTime = new HashSet<>();
     while (true) {
-      // TODO: Signal, External Task
+      // TODO: Signal
 
-      // get all work and add it to
+      /* get all work and add it to */
       List<Work<?>> todo = new LinkedList<>();
-      engine.getTaskService().createTaskQuery().processInstanceId(pi.getId()).list().stream() //
+      engine.getTaskService().createTaskQuery().processInstanceId(pi.getId()).active().list().stream() //
           .map(task -> new TaskWork(task, pi)) //
+          .forEach(todo::add);
+      // lock everything we can get for this process instance by fetching all
+      // open tasks, accumulate their topics and lock on them
+      // TODO lock time should be derived from durationMean+durationSd+epsilon
+      engine.getExternalTaskService().createExternalTaskQuery().processInstanceId(pi.getId()).notLocked().active().list().stream() //
+          .map(ExternalTask::getTopicName) //
+          .distinct() //
+          .forEach(topic -> engine.getExternalTaskService().fetchAndLock(Integer.MAX_VALUE, "demo-data-generator").topic(topic, 3600L * 1000L).execute());
+      engine.getExternalTaskService().createExternalTaskQuery().processInstanceId(pi.getId()).active().locked().list().stream() //
+          .map(externalTask -> new ExternalTaskWork(externalTask, pi)) //
           .forEach(todo::add);
       engine.getRuntimeService().createEventSubscriptionQuery().processInstanceId(pi.getId()).eventType("message").list().stream() //
           .map(event -> new EventWork(event, pi)) //
           .forEach(todo::add);
-      engine.getManagementService().createJobQuery().processInstanceId(pi.getId()).list().stream() //
-          .filter(job -> !job.isSuspended()) // jobs can be suspended - do not
-                                             // want to execute
+      engine.getManagementService().createJobQuery().processInstanceId(pi.getId()).active().list().stream() //
           .map(job -> new JobWork(job, pi)) //
           .forEach(todo::add);
       engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream() //
@@ -329,6 +339,26 @@ public class TimeAwareDemoGenerator {
     @Override
     public void executeImpl(ProcessEngine engine) {
       engine.getTaskService().complete(workItem.getId());
+    }
+
+  }
+
+  class ExternalTaskWork extends Work<ExternalTask> {
+
+    public ExternalTaskWork(ExternalTask workItem, ProcessInstance pi) {
+      super(workItem, pi);
+    }
+
+    @Override
+    protected Date calculateNewRandomDue() {
+      // external tasks have no creation date, so we say this happens when we
+      // see them first time
+      return calculateNewRandomDue(pi, workItem.getActivityId(), ClockUtil.getCurrentTime());
+    }
+
+    @Override
+    public void executeImpl(ProcessEngine engine) {
+      engine.getExternalTaskService().complete(workItem.getId(), workItem.getWorkerId());
     }
 
   }

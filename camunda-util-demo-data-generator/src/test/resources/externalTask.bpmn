@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="_GVNrEB_kEeWq-YqF5Wczwg" targetNamespace="http://camunda.org/schema/1.0/bpmn" exporter="Camunda Modeler" exporterVersion="1.10.0" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="externalTask" name="externalTask" isExecutable="true">
+    <bpmn2:extensionElements>
+      <camunda:properties>
+        <camunda:property name="simulateNumberOfDaysInPast" value="1" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="6000" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="100" />
+        <camunda:property name="runAlways" value="false" />
+      </camunda:properties>
+    </bpmn2:extensionElements>
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>SequenceFlow_0lgfp9e</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:endEvent id="EndEvent_04ucxlk">
+      <bpmn2:incoming>SequenceFlow_1s78q28</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0lgfp9e" sourceRef="StartEvent_1" targetRef="Task_037y6x8" />
+    <bpmn2:sequenceFlow id="SequenceFlow_1s78q28" sourceRef="Task_037y6x8" targetRef="EndEvent_04ucxlk" />
+    <bpmn2:serviceTask id="Task_037y6x8" name="External: testTopic" camunda:modelerTemplate="com.camunda.demo.environment.waitstate" camunda:type="external" camunda:topic="testTopic">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="30" />
+          <camunda:property name="durationSd" value="10" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0lgfp9e</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_1s78q28</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+  </bpmn2:process>
+  <bpmn2:message id="Message_1" name="SOME_MESSAGE" />
+  <bpmn2:message id="Message_2" name="ANOTHER_MESSAGE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="externalTask">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_8" bpmnElement="StartEvent_1">
+        <dc:Bounds x="12" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="30" y="200" width="0" height="0" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_04ucxlk_di" bpmnElement="EndEvent_04ucxlk">
+        <dc:Bounds x="240" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="213" y="198" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0lgfp9e_di" bpmnElement="SequenceFlow_0lgfp9e">
+        <di:waypoint xsi:type="dc:Point" x="48" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="94" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="26" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_1s78q28_di" bpmnElement="SequenceFlow_1s78q28">
+        <di:waypoint xsi:type="dc:Point" x="194" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="240" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="217" y="155.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="ServiceTask_18ulj52_di" bpmnElement="Task_037y6x8">
+        <dc:Bounds x="94" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
