@@ -1,19 +1,18 @@
 package com.camunda.demo.environment.simulation;
 
-import static org.camunda.bpm.engine.test.assertions.ProcessEngineAssertions.assertThat;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineAssertions.init;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineAssertions.processEngine;
-import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.complete;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.repositoryService;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.runtimeService;
-import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.task;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Collection;
+import java.util.List;
 
-import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
+import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.model.bpmn.Bpmn;
@@ -28,14 +27,16 @@ import org.camunda.bpm.model.xml.instance.ModelElementInstance;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.camunda.demo.environment.DemoDataGenerator;
-import com.camunda.demo.environment.simulation.TimeAwareDemoGenerator;
 
 /**
  * Test case starting an in-memory database-backed Process Engine.
  */
 public class DemoDataGeneratorTest {
+  Logger LOG = LoggerFactory.getLogger(DemoDataGeneratorTest.class);
 
   @Rule
   public ProcessEngineRule rule = new ProcessEngineRule();
@@ -66,45 +67,111 @@ public class DemoDataGeneratorTest {
     // complete(task());
     // assertThat(pi).isEnded();
   }
-  
-  @Test
-  @Deployment(resources = {"simulate.bpmn", "runAlways.bpmn"})
-  public void testRunAlways() {
-    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
-        .processDefinitionKey("simulate") //
-        .numberOfDaysInPast(1) //
-        .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
-    generator.generateData();
-    long firstRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("simulate").count();
 
-    assertThat(firstRun > 0);
-    
-    generator = new TimeAwareDemoGenerator(processEngine()) //
-        .processDefinitionKey("simulate") //
+  @Test
+  @Deployment(resources = "boundaryMessage.bpmn")
+  public void testMessageBoundary() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("boundaryMessage") //
         .numberOfDaysInPast(1) //
-        .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
+        .timeBetweenStartsBusinessDays(600.0, 100.0);
     generator.generateData();
-    long secondRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("simulate").count();
-    
-    assertEquals(firstRun, secondRun);
-    
-    DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
-    firstRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("runAlways").count();
-    assertThat(firstRun > 0);
-    DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
-    secondRun = processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("runAlways").count();
-    assertThat(firstRun < secondRun);
+
+    long taken = processEngine().getHistoryService().createHistoricActivityInstanceQuery().processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage"))
+        .activityId("EndEvent_Taken").count();
+    long notTaken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage")).activityId("EndEvent_NotTaken").count();
+    double all = taken + notTaken; // force floating point later
+
+    LOG.debug(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
+
+    // near to fifty fifty
+    assert (Math.abs(taken / all) > 0.4);
+    assert (Math.abs(taken / all) < 0.6);
+    assert (Math.abs(notTaken / all) > 0.4);
+    assert (Math.abs(notTaken / all) < 0.6);
   }
-  
-//  @Test
-  @Deployment(resources = {"InsuranceApplication.bpmn", "ApplicationCheck.cmmn"})
+
+  @Test
+  @Deployment(resources = "cycleBoundaryTimer.bpmn")
+  public void testCycleBoundaryTimer() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("cycleBoundaryTimer") //
+        .numberOfDaysInPast(1) //
+        .timeBetweenStartsBusinessDays(6000.0, 100.0);
+    generator.generateData();
+
+    long taken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("cycleBoundaryTimer")).activityId("EndEvent_Taken").count();
+    long notTaken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("cycleBoundaryTimer")).activityId("EndEvent_NotTaken").count();
+    double all = taken + notTaken; // force floating point later
+
+    LOG.debug(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
+
+    // take timer roughly ten times before finish user task
+    assert (Math.abs(taken / all) > 0.8);
+    assert (Math.abs(taken / all) < 1);
+  }
+
+  String getProcessDefinitionIdByKey(String processDefinitionKey) {
+    return repositoryService().createProcessDefinitionQuery().processDefinitionKey(processDefinitionKey).versionTag("demo-data-generator").singleResult()
+        .getId();
+  }
+
+  @Test
+  @Deployment(resources = { "repeatCallActivityMain.bpmn", "repeatCallActivitySub.bpmn" })
+  public void testRepeatCallActivity() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("repeatCallActivityMain") //
+        .additionalModelKeys("repeatCallActivitySub") //
+        .numberOfDaysInPast(1) //
+        .timeBetweenStartsBusinessDays(6000.0, 1.0);
+    generator.generateData();
+
+    long taken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("repeatCallActivitySub")).activityId("EndEvent_SubTaken").count();
+    long notTaken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("repeatCallActivityMain")).activityId("EndEvent_NotTaken").count();
+    double all = taken + notTaken; // force floating point later
+
+    LOG.debug(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
+
+    // we expect call activitiy to be run 2 times per main run
+    assert (taken > notTaken * 1.9);
+    assert (taken < notTaken * 2.1);
+  }
+
+  @Test
+  @Deployment(resources = { "runOnce.bpmn", "runAlways.bpmn" })
+  public void testRunAlways() {
+    DemoDataGenerator.autoGenerateFor(processEngine(), "runOnce", null);
+    long firstRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runOnce").count();
+
+    assert (firstRun > 0);
+
+    DemoDataGenerator.autoGenerateFor(processEngine(), "runOnce", null);
+    long secondRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runOnce").count();
+
+    assertEquals(firstRun, secondRun);
+
+    DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
+    firstRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runAlways").count();
+    assert (firstRun > 0);
+    DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
+    secondRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runAlways").count();
+    assert (firstRun < secondRun);
+  }
+
+  // @Test
+  @Deployment(resources = { "InsuranceApplication.bpmn", "ApplicationCheck.cmmn" })
   public void testInsuranceApplicationWithCmmn() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("insurance-application") //
         .numberOfDaysInPast(1) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
     generator.generateData();
-    
+
     // everything should be finished as case instance gets completed
     assertEquals(0, processEngine().getRuntimeService().createProcessInstanceQuery().processDefinitionKey("insurance-application").count());
   }
@@ -120,23 +187,25 @@ public class DemoDataGeneratorTest {
 
     String xmlString = Bpmn.convertToString(modelInstance);
     org.camunda.bpm.engine.repository.Deployment deployment = processEngine().getRepositoryService().createDeployment() //
-        .addInputStream("umlauts.bpmn", new ByteArrayInputStream(xmlString.getBytes("UTF-8")))
-        .deploy();
+        .addInputStream("umlauts.bpmn", new ByteArrayInputStream(xmlString.getBytes("UTF-8"))).deploy();
 
     processEngine().getRepositoryService().deleteDeployment(deployment.getId(), true);
   }
 
-//  @Test
-//  public void testModelApiUtf8BugUsingTweak() {
-//    org.camunda.bpm.engine.repository.Deployment deployment = processEngine().getRepositoryService().createDeployment() //
-//        .addClasspathResource("rechnungseingang.bpmn") //
-//        .deploy();
-//
-//    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine());
-//    generator.processDefinitionKey("rechnungseingang").numberOfDaysInPast(5);
-//    generator.tweakProcessDefinition();
-//    processEngine().getRepositoryService().deleteDeployment(deployment.getId(), true);
-//  }
+  // @Test
+  // public void testModelApiUtf8BugUsingTweak() {
+  // org.camunda.bpm.engine.repository.Deployment deployment =
+  // processEngine().getRepositoryService().createDeployment() //
+  // .addClasspathResource("rechnungseingang.bpmn") //
+  // .deploy();
+  //
+  // TimeAwareDemoGenerator generator = new
+  // TimeAwareDemoGenerator(processEngine());
+  // generator.processDefinitionKey("rechnungseingang").numberOfDaysInPast(5);
+  // generator.tweakProcessDefinition();
+  // processEngine().getRepositoryService().deleteDeployment(deployment.getId(),
+  // true);
+  // }
 
   @Test
   public void testModelApiBug() {

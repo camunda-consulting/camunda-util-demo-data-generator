@@ -59,7 +59,8 @@
 	  "appliesTo": [
 	    "bpmn:UserTask",
 	    "bpmn:ReceiveTask",
-	    "bpmn:IntermediateCatchEvent" 
+	    "bpmn:IntermediateCatchEvent",
+	    "bpmn:BoundaryEvent"
 	  ],
 	  "properties": [
 	    {

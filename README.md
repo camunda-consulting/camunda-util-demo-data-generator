@@ -39,7 +39,7 @@ Extension Attributes: `durationMean` and `durationSd`
 
 ![Distribution for Task Duration](taskDuration.png)
 
-### Add Distribution for Duration of Receive Tasks / Intermediate Message Events
+### Add Distribution for Duration of Receive Tasks / Intermediate Message Events / Boundary Message Events
 
 Do it as for User Tasks - it is the same configuration.
 

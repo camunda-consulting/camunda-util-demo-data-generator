@@ -1,13 +1,17 @@
 package com.camunda.demo.environment.simulation;
 
+import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.Optional;
+import java.util.Set;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.camunda.bpm.application.ProcessApplicationReference;
@@ -15,14 +19,18 @@ import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.history.HistoricCaseInstance;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.camunda.bpm.engine.impl.persistence.entity.TimerEntity;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
 import org.camunda.bpm.engine.runtime.CaseExecution;
 import org.camunda.bpm.engine.runtime.CaseInstance;
 import org.camunda.bpm.engine.runtime.EventSubscription;
 import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.camunda.demo.environment.DemoDataGenerator;
 
@@ -32,7 +40,7 @@ import com.camunda.demo.environment.DemoDataGenerator;
  */
 public class TimeAwareDemoGenerator {
 
-  private static final Logger log = Logger.getLogger(TimeAwareDemoGenerator.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(TimeAwareDemoGenerator.class);
 
   private String processDefinitionKey;
   private int numberOfDaysInPast;
@@ -47,6 +55,8 @@ public class TimeAwareDemoGenerator {
   private ProcessEngine engine;
 
   private Map<String, NormalDistribution> distributions = new HashMap<String, NormalDistribution>();
+
+  private Map<Object, Date> dueCache = new HashMap<>();
 
   private ProcessApplicationReference processApplicationReference;
 
@@ -109,7 +119,9 @@ public class TimeAwareDemoGenerator {
 
   protected void startMultipleProcessInstances() {
     try {
-      log.info("start multiple process instances for " + numberOfDaysInPast + " workingdays in the past");
+      LOG.info("start multiple process instances for " + numberOfDaysInPast + " workingdays in the past");
+
+      long counter = 0;
 
       // for all desired days in past
       for (int i = numberOfDaysInPast; i >= 0; i--) {
@@ -135,6 +147,8 @@ public class TimeAwareDemoGenerator {
               System.out.print(".");
               runSingleProcessInstance();
 
+              LOG.debug("Currently " + ++counter + " process instances are finished.");
+
               // Housekeeping for safety (as the run might have changed the
               // clock)
               ClockUtil.setCurrentTime(cal.getTime());
@@ -151,46 +165,65 @@ public class TimeAwareDemoGenerator {
   protected void runSingleProcessInstance() {
     ProcessInstance pi = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
         Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
-    driveProcessInstance(pi);
+    try {
+      driveProcessInstance(pi);
+    } catch (ReachedCurrentTimeException e) {
+      // no problem
+    }
   }
 
-  protected void driveProcessInstance(ProcessInstance pi) {
-    boolean piRunning = true;
+  protected void driveProcessInstance(ProcessInstance pi) throws ReachedCurrentTimeException {
+    Set<String> processInstancesAlreadyReachedCurrentTime = new HashSet<>();
+    while (true) {
+      // TODO: Signal, External Task
 
-    while (piRunning) {
-      // TODO:
-      // engine.getRuntimeService().createEventSubscriptionQuery().processInstanceId(pi.getId()).eventType("signal").list();
+      // get all work and add it to
+      List<Work<?>> todo = new LinkedList<>();
+      engine.getTaskService().createTaskQuery().processInstanceId(pi.getId()).list().stream() //
+          .map(task -> new TaskWork(task, pi)) //
+          .forEach(todo::add);
+      engine.getRuntimeService().createEventSubscriptionQuery().processInstanceId(pi.getId()).eventType("message").list().stream() //
+          .map(event -> new EventWork(event, pi)) //
+          .forEach(todo::add);
+      engine.getManagementService().createJobQuery().processInstanceId(pi.getId()).list().stream() //
+          .filter(job -> !job.isSuspended()) // jobs can be suspended - do not
+                                             // want to execute
+          .map(job -> new JobWork(job, pi)) //
+          .forEach(todo::add);
+      engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream() //
+          // early filter out already stopped ones
+          .filter(historicCallActivity -> !processInstancesAlreadyReachedCurrentTime.contains(historicCallActivity.getCalledProcessInstanceId()))
+          .map(callActivity -> new CallActivityWork(callActivity, pi)) //
+          .forEach(todo::add);
 
-      List<org.camunda.bpm.engine.task.Task> tasks = engine.getTaskService().createTaskQuery().processInstanceId(pi.getId()).list();
-      handleTasks(engine, pi, tasks);
+      // try to find something executable: first come first serve, but nothing
+      // in "real" future
+      Date theRealNow = new Date();
+      Optional<Work<?>> candidate = todo.stream() //
+          .filter(work -> !work.getDue().after(theRealNow)) //
+          .min((workA, workB) -> workA.getDue().compareTo(workB.getDue()));
 
-      List<EventSubscription> messages = engine.getRuntimeService().createEventSubscriptionQuery().processInstanceId(pi.getId()).eventType("message").list();
-      handleMessages(engine, pi, messages);
-
-      List<Job> jobs = engine.getManagementService().createJobQuery().processInstanceId(pi.getId()).list();
-      handleJobs(jobs);
-
-      List<HistoricActivityInstance> callActivities = engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished()
-          .processInstanceId(pi.getId()).activityType("callActivity").list();
-      for (HistoricActivityInstance callActivityInstance : callActivities) {
-        if (callActivityInstance.getCalledProcessInstanceId() != null) {
-          driveProcessInstance(
-              engine.getRuntimeService().createProcessInstanceQuery().processInstanceId(callActivityInstance.getCalledProcessInstanceId()).singleResult());
-        } else if (callActivityInstance.getCalledCaseInstanceId() != null) {
-          driveCaseInstance(engine.getCaseService().createCaseInstanceQuery().caseInstanceId(callActivityInstance.getCalledCaseInstanceId()).singleResult());
+      // if there is no work to do, we are done -- if everything would be so
+      // easy
+      if (!candidate.isPresent()) {
+        if (todo.isEmpty()) {
+          LOG.debug("Instance " + pi.getId() + " finished (no work anymore).");
+        } else {
+          LOG.debug("Instance " + pi.getId() + " reached current time -- stopping.");
+          throw new ReachedCurrentTimeException(pi.getId());
         }
+        break;
       }
 
-      // do queries again if we have changed anything in the process instance
-      // for the moment we do not query processInstance.isEnded as we are not
-      // sure
-      // if we have yet tackled all situations (read: we are sure we haven't
-      // yet).
-      // This will at least not lead to endless loops
-      piRunning = (tasks.size() > 0 || messages.size() > 0 || jobs.size() > 0);
-
-      // TODO: Stop when we reach the NOW time (might leave open tasks - but
-      // that is OK!)
+      // we have work, we do work - advancing time if necessary
+      if (candidate.get().getDue().after(ClockUtil.getCurrentTime())) {
+        ClockUtil.setCurrentTime(candidate.get().getDue());
+      }
+      try {
+        candidate.get().execute(engine);
+      } catch (ReachedCurrentTimeException e) {
+        processInstancesAlreadyReachedCurrentTime.add(e.getProcessInstanceId());
+      }
     }
   }
 
@@ -236,87 +269,147 @@ public class TimeAwareDemoGenerator {
     }
   }
 
-  protected boolean handleTasks(ProcessEngine engine, ProcessInstance pi, List<org.camunda.bpm.engine.task.Task> tasks) {
-    for (org.camunda.bpm.engine.task.Task task : tasks) {
-      String id = task.getTaskDefinitionKey();
+  abstract class Work<T> {
+    protected T workItem;
+    protected ProcessInstance pi;
 
+    public Work(T workItem, ProcessInstance pi) {
+      this.workItem = workItem;
+      this.pi = pi;
+    }
+
+    abstract protected Date calculateNewRandomDue();
+
+    final public void execute(ProcessEngine engine) throws ReachedCurrentTimeException {
+      executeImpl(engine);
+      // If we are a recurring job, we have to make sure that due date is newly
+      // calculated after each execution. To do so, we simply remove it from
+      // cache in every case.
+      dueCache.remove(workItem);
+    };
+
+    abstract protected void executeImpl(ProcessEngine engine) throws ReachedCurrentTimeException;
+
+    public Date getDue() {
+      if (!dueCache.containsKey(workItem)) {
+        dueCache.put(workItem, calculateNewRandomDue());
+      }
+      return dueCache.get(workItem);
+    }
+
+    protected Date calculateNewRandomDue(ProcessInstance pi, String id, Date creationTime) {
       if (!distributions.containsKey(id)) {
         NormalDistribution distribution = createDistributionForElement(pi, id);
         distributions.put(id, distribution);
       }
 
       Calendar cal = Calendar.getInstance();
-      cal.setTime(task.getCreateTime());
-      double timeToWait = distributions.get(task.getTaskDefinitionKey()).sample();
+      cal.setTime(creationTime);
+      double timeToWait = distributions.get(id).sample();
       if (timeToWait <= 0) {
         timeToWait = 1;
       }
       cal.add(Calendar.SECOND, (int) Math.round(timeToWait));
 
-      if (timerDue(engine, pi, cal.getTime())) {
-        if (engine.getTaskService().createTaskQuery().taskId(task.getId()).count() == 0) {
-          // do nothing - timer was faster and canceled activity
-          return true;
-        }
-      }
-
-      ClockUtil.setCurrentTime(cal.getTime());
-
-      engine.getTaskService().complete(task.getId());
-      return true;
-    }
-    return false;
-  }
-
-  private boolean timerDue(ProcessEngine engine2, ProcessInstance pi, Date date) {
-
-    List<Job> jobs = engine.getManagementService().createJobQuery() //
-        .processInstanceId(pi.getProcessInstanceId()).timers().duedateLowerThan(date).list();
-
-    if (jobs.size() > 0) {
-      handleJobs(jobs);
-      return true;
-    } else {
-      return false;
+      return cal.getTime();
     }
   }
 
-  protected boolean handleMessages(ProcessEngine engine, ProcessInstance pi, List<EventSubscription> messages) {
-    for (EventSubscription eventSubscription : messages) {
-      String id = eventSubscription.getActivityId();
-      if (!distributions.containsKey(id)) {
-        NormalDistribution distribution = createDistributionForElement(pi, id);
-        distributions.put(id, distribution);
-      }
+  class TaskWork extends Work<Task> {
 
-      Calendar cal = Calendar.getInstance();
-      cal.setTime(eventSubscription.getCreated());
-      double timeToWait = distributions.get(id).sample();
-      cal.add(Calendar.SECOND, (int) Math.round(timeToWait));
-
-      if (timerDue(engine, pi, cal.getTime())) {
-        if (engine.getRuntimeService().createEventSubscriptionQuery().eventSubscriptionId(eventSubscription.getId()).count() == 0) {
-          // do nothing - timer was faster and canceled activity waiting for
-          // message
-          return true;
-        }
-      }
-
-      ClockUtil.setCurrentTime(cal.getTime());
-      engine.getRuntimeService().createMessageCorrelation(eventSubscription.getEventName()).processInstanceId(pi.getId()).correlateAllWithResult();
+    public TaskWork(Task workItem, ProcessInstance pi) {
+      super(workItem, pi);
     }
-    return false;
+
+    @Override
+    protected Date calculateNewRandomDue() {
+      return calculateNewRandomDue(pi, workItem.getTaskDefinitionKey(), workItem.getCreateTime());
+    }
+
+    @Override
+    public void executeImpl(ProcessEngine engine) {
+      engine.getTaskService().complete(workItem.getId());
+    }
+
   }
 
-  protected void handleJobs(List<Job> jobs) {
-    for (Job job : jobs) {
-      if (engine.getManagementService().createJobQuery().jobId(job.getId()).count() == 1) {
-        engine.getManagementService().executeJob(job.getId());
+  class EventWork extends Work<EventSubscription> {
+
+    public EventWork(EventSubscription workItem, ProcessInstance pi) {
+      super(workItem, pi);
+    }
+
+    @Override
+    protected Date calculateNewRandomDue() {
+      return calculateNewRandomDue(pi, workItem.getActivityId(), workItem.getCreated());
+    }
+
+    @Override
+    public void executeImpl(ProcessEngine engine) {
+      engine.getRuntimeService().createMessageCorrelation(workItem.getEventName()).processInstanceId(pi.getId()).correlateAllWithResult();
+    }
+
+  }
+
+  class JobWork extends Work<Job> {
+
+    public JobWork(Job workItem, ProcessInstance pi) {
+      super(workItem, pi);
+    }
+
+    @Override
+    protected Date calculateNewRandomDue() {
+      // taking what the engine thinks is "now" makes the job eligible for
+      // immediate execution
+      return Optional.ofNullable(workItem.getDuedate()).orElse(ClockUtil.getCurrentTime());
+    }
+
+    @Override
+    public void executeImpl(ProcessEngine engine) {
+      if (workItem.isSuspended())
         return;
-      } else {
-        // System.out.println("COULD NOT EXECUTE JOB " + job);
+
+      if (workItem instanceof TimerEntity) {
+        /*
+         * Caused by DurationHelper.getDateAfterRepeat: return next.before(date)
+         * ? null : next;
+         * 
+         * This leads to endless loop if we call a timer job at exactly the time
+         * it will schedule next. Cannot be handled by engine, because there is
+         * no "counter" in the database for executions - it has to trust the
+         * clock on the wall.
+         */
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(ClockUtil.getCurrentTime());
+        cal.add(Calendar.MILLISECOND, 1);
+        ClockUtil.setCurrentTime(cal.getTime());
+      }
+      engine.getManagementService().executeJob(workItem.getId());
+    }
+
+  }
+
+  class CallActivityWork extends Work<HistoricActivityInstance> {
+
+    public CallActivityWork(HistoricActivityInstance workItem, ProcessInstance pi) {
+      super(workItem, pi);
+    }
+
+    @Override
+    protected Date calculateNewRandomDue() {
+      // immediate
+      return ClockUtil.getCurrentTime();
+    }
+
+    @Override
+    public void executeImpl(ProcessEngine engine) throws ReachedCurrentTimeException {
+      if (workItem.getCalledProcessInstanceId() != null) {
+        driveProcessInstance(engine.getRuntimeService().createProcessInstanceQuery().processInstanceId(workItem.getCalledProcessInstanceId()).singleResult());
+      } else if (workItem.getCalledCaseInstanceId() != null) {
+        driveCaseInstance(engine.getCaseService().createCaseInstanceQuery().caseInstanceId(workItem.getCalledCaseInstanceId()).singleResult());
       }
     }
+
   }
 
   protected NormalDistribution createDistributionForElement(ProcessInstance pi, String id) {

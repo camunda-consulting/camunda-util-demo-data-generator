@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Logger;
 
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -25,6 +24,7 @@ import org.camunda.bpm.model.bpmn.instance.ConditionExpression;
 import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
 import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
 import org.camunda.bpm.model.bpmn.instance.InclusiveGateway;
+import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.ReceiveTask;
 import org.camunda.bpm.model.bpmn.instance.ScriptTask;
 import org.camunda.bpm.model.bpmn.instance.SendTask;
@@ -46,10 +46,12 @@ import org.camunda.bpm.model.cmmn.instance.camunda.CamundaCaseExecutionListener;
 import org.camunda.bpm.model.xml.ModelInstance;
 import org.camunda.bpm.model.xml.impl.util.IoUtil;
 import org.camunda.bpm.model.xml.instance.ModelElementInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DemoModelInstrumentator {
 
-  private static final Logger log = Logger.getLogger(TimeAwareDemoGenerator.class.getName());
+  private static final Logger LOG = LoggerFactory.getLogger(DemoModelInstrumentator.class);
   private ProcessEngineImpl engine;
 
   private ProcessApplicationReference processApplicationReference;
@@ -72,12 +74,13 @@ public class DemoModelInstrumentator {
         if (cd != null) {
           addCmmn(key);
         } else {
-//          DecisionDefinition dd = engine.getRepositoryService().createDecisionDefinitionQuery().decisionDefinitionKey(key).latestVersion().singleResult();
-//          if (dd != null) {
-//            addDmn(key);
-//          } else {
-            // ignore for now
-//          }
+          // DecisionDefinition dd =
+          // engine.getRepositoryService().createDecisionDefinitionQuery().decisionDefinitionKey(key).latestVersion().singleResult();
+          // if (dd != null) {
+          // addDmn(key);
+          // } else {
+          // ignore for now
+          // }
         }
       }
     }
@@ -92,12 +95,12 @@ public class DemoModelInstrumentator {
     tweakCaseDefinition(caseDefinitionKey);
   }
 
-//  public void addDmn(String decisionDefinitionKey) {
-//    tweakDecisionDefinition(decisionDefinitionKey);
-//  }
-  
+  // public void addDmn(String decisionDefinitionKey) {
+  // tweakDecisionDefinition(decisionDefinitionKey);
+  // }
+
   public void deployTweakedModels() {
-    log.finer("Starting deployment of tweaked models for demo data generation");
+    LOG.info("Starting deployment of tweaked models for demo data generation");
     try {
       DeploymentBuilder deploymentBuilder = engine.getRepositoryService().createDeployment();
       for (Entry<String, String> model : tweakedModels.entrySet()) {
@@ -107,14 +110,14 @@ public class DemoModelInstrumentator {
       if (processApplicationReference != null) {
         engine.getManagementService().registerProcessApplication(deployment.getId(), processApplicationReference);
       }
-      log.info("Deployed tweaked modes for demo data generation with deployment " + deployment.getId());
+      LOG.info("Deployed tweaked modes for demo data generation with deployment " + deployment.getId());
     } catch (Exception ex) {
       throw new RuntimeException("Could not deploy tweaked process definition", ex);
     }
   }
 
   public void restoreOriginalModels() {
-    log.finer("Starting to restore models after demo data generation");
+    LOG.info("Starting to restore models after demo data generation");
     try {
       DeploymentBuilder deploymentBuilder = engine.getRepositoryService().createDeployment();
       for (Entry<String, String> model : originalModels.entrySet()) {
@@ -124,14 +127,14 @@ public class DemoModelInstrumentator {
       if (processApplicationReference != null) {
         engine.getManagementService().registerProcessApplication(deployment.getId(), processApplicationReference);
       }
-      log.info("Restored original modes after demo data generation with deployment " + deployment.getId());
+      LOG.info("Restored original modes after demo data generation with deployment " + deployment.getId());
     } catch (Exception ex) {
       throw new RuntimeException("Could not restore original models", ex);
     }
   }
 
   protected String tweakProcessDefinition(String processDefinitionKey) {
-    log.info("tweak process definition " + processDefinitionKey);
+    LOG.info("tweak process definition " + processDefinitionKey);
 
     ProcessDefinition processDefinition = engine.getRepositoryService().createProcessDefinitionQuery() //
         .processDefinitionKey(processDefinitionKey) //
@@ -150,9 +153,12 @@ public class DemoModelInstrumentator {
 
     String originalBpmn = IoUtil.convertXmlDocumentToString(bpmn.getDocument());
     // do not do a validation here as it caused quite strange trouble
-    log.finer("-----\n" + originalBpmn + "\n------");
+    LOG.debug("-----\n" + originalBpmn + "\n------");
 
     originalModels.put(processDefinitionKey + ".bpmn", originalBpmn);
+
+    Collection<Process> processes = bpmn.getModelElementsByType(Process.class);
+    processes.stream().forEach(process -> process.setAttributeValueNs("http://camunda.org/schema/1.0/bpmn", "versionTag", "demo-data-generator"));
 
     Collection<ModelElementInstance> serviceTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(ServiceTask.class));
     Collection<ModelElementInstance> sendTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(SendTask.class));
@@ -237,6 +243,7 @@ public class DemoModelInstrumentator {
     // Bpmn.validateModel(bpmn);
     String xmlString = Bpmn.convertToString(bpmn);
     tweakedModels.put(processDefinitionKey + ".bpmn", xmlString);
+    LOG.debug("-----TWEAKED-----\n-----TWEAKED-----\n-----\n" + xmlString + "\n------");
     return xmlString;
   }
 
@@ -285,7 +292,7 @@ public class DemoModelInstrumentator {
   }
 
   public String tweakCaseDefinition(String caseDefinitionKey) {
-    log.info("tweak case definition " + caseDefinitionKey);
+    LOG.info("tweak case definition " + caseDefinitionKey);
 
     CaseDefinition caseDefinition = engine.getRepositoryService().createCaseDefinitionQuery() //
         .caseDefinitionKey(caseDefinitionKey) //
@@ -304,7 +311,7 @@ public class DemoModelInstrumentator {
 
     String originalCmmn = IoUtil.convertXmlDocumentToString(cmmn.getDocument());
     // do not do a validation here as it caused quite strange trouble
-    log.finer("-----\n" + originalCmmn + "\n------");
+    LOG.debug("-----\n" + originalCmmn + "\n------");
     originalModels.put(caseDefinitionKey + ".cmmn", originalCmmn);
 
     CasePlanModel casePlanModel = (CasePlanModel) cmmn.getModelElementsByType(cmmn.getModel().getType(CasePlanModel.class)).iterator().next();
@@ -389,9 +396,9 @@ public class DemoModelInstrumentator {
     casePlanModel.getExtensionElements().addChildElement(executionListener);
 
   }
-  
+
   public String tweakDecisionDefinition(String decisionDefinitionKey) {
-    log.info("tweak decision definition " + decisionDefinitionKey);
+    LOG.info("tweak decision definition " + decisionDefinitionKey);
 
     DecisionDefinition decisionDefinition = engine.getRepositoryService().createDecisionDefinitionQuery() //
         .decisionDefinitionKey(decisionDefinitionKey) //
@@ -402,13 +409,13 @@ public class DemoModelInstrumentator {
     }
 
     InputStream decisionModel = engine.getRepositoryService().getDecisionModel(decisionDefinition.getId());
-    
+
     try {
       String originalDmn = IoUtil.getStringFromInputStream(decisionModel);
       // do not do a validation here as it caused quite strange trouble
-      log.finer("-----\n" + originalDmn + "\n------");
+      LOG.debug("-----\n" + originalDmn + "\n------");
       originalModels.put(decisionDefinitionKey + ".dmn", originalDmn);
-      
+
       return originalDmn;
     } catch (IOException e) {
       throw new RuntimeException("Cannot read decision definition: " + e.getMessage(), e);

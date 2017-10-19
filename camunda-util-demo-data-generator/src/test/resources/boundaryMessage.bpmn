@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="_GVNrEB_kEeWq-YqF5Wczwg" targetNamespace="http://camunda.org/schema/1.0/bpmn" exporter="Camunda Modeler" exporterVersion="1.10.0" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="boundaryMessage" name="boundaryMessage" isExecutable="true">
+    <bpmn2:extensionElements>
+      <camunda:properties>
+        <camunda:property name="simulateNumberOfDaysInPast" value="1" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="6000" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="100" />
+        <camunda:property name="runAlways" value="true" />
+      </camunda:properties>
+    </bpmn2:extensionElements>
+    <bpmn2:startEvent id="StartEvent_1" camunda:asyncAfter="true">
+      <bpmn2:outgoing>SequenceFlow_0lgfp9e</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:endEvent id="EndEvent_NotTaken" name="NotTaken">
+      <bpmn2:incoming>SequenceFlow_038k8py</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0lgfp9e" sourceRef="StartEvent_1" targetRef="Task_1f33bb9" />
+    <bpmn2:sequenceFlow id="SequenceFlow_038k8py" sourceRef="Task_1f33bb9" targetRef="EndEvent_NotTaken" />
+    <bpmn2:userTask id="Task_1f33bb9" name="User">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="100" />
+          <camunda:property name="durationSd" value="10" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0lgfp9e</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_038k8py</bpmn2:outgoing>
+    </bpmn2:userTask>
+    <bpmn2:boundaryEvent id="BoundaryEvent_010lg5k" attachedToRef="Task_1f33bb9">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="100" />
+          <camunda:property name="durationSd" value="10" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:outgoing>SequenceFlow_085qo4b</bpmn2:outgoing>
+      <bpmn2:messageEventDefinition messageRef="Message_1igk9vf" />
+    </bpmn2:boundaryEvent>
+    <bpmn2:endEvent id="EndEvent_Taken" name="Taken">
+      <bpmn2:incoming>SequenceFlow_085qo4b</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_085qo4b" sourceRef="BoundaryEvent_010lg5k" targetRef="EndEvent_Taken" />
+  </bpmn2:process>
+  <bpmn2:message id="Message_1" name="SOME_MESSAGE" />
+  <bpmn2:message id="Message_2" name="ANOTHER_MESSAGE" />
+  <bpmn2:message id="Message_1igk9vf" name="BOUNDARY_MESSAGE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="boundaryMessage">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_8" bpmnElement="StartEvent_1">
+        <dc:Bounds x="12" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="30" y="200" width="0" height="0" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_04ucxlk_di" bpmnElement="EndEvent_NotTaken">
+        <dc:Bounds x="275" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="270" y="198" width="47" height="12" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0lgfp9e_di" bpmnElement="SequenceFlow_0lgfp9e">
+        <di:waypoint xsi:type="dc:Point" x="48" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="105" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="31.5" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_038k8py_di" bpmnElement="SequenceFlow_038k8py">
+        <di:waypoint xsi:type="dc:Point" x="205" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="275" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="240" y="155.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="UserTask_091wp82_di" bpmnElement="Task_1f33bb9">
+        <dc:Bounds x="105" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BoundaryEvent_1hvijt9_di" bpmnElement="BoundaryEvent_010lg5k">
+        <dc:Bounds x="138" y="199" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="156" y="238" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1brc4mf_di" bpmnElement="EndEvent_Taken">
+        <dc:Bounds x="138" y="290" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="142" y="329" width="30" height="12" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_085qo4b_di" bpmnElement="SequenceFlow_085qo4b">
+        <di:waypoint xsi:type="dc:Point" x="156" y="235" />
+        <di:waypoint xsi:type="dc:Point" x="156" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="171" y="255.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

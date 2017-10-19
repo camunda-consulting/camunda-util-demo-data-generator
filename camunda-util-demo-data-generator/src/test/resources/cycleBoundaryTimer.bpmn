@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="_GVNrEB_kEeWq-YqF5Wczwg" targetNamespace="http://camunda.org/schema/1.0/bpmn" exporter="Camunda Modeler" exporterVersion="1.10.0" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="cycleBoundaryTimer" name="cycleBoundaryTimer" isExecutable="true">
+    <bpmn2:extensionElements>
+      <camunda:properties>
+        <camunda:property name="simulateNumberOfDaysInPast" value="1" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="6000" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="100" />
+        <camunda:property name="runAlways" value="false" />
+      </camunda:properties>
+    </bpmn2:extensionElements>
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>SequenceFlow_0lgfp9e</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:endEvent id="EndEvent_NotTaken" name="NotTaken">
+      <bpmn2:incoming>SequenceFlow_0g0x4st</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0lgfp9e" sourceRef="StartEvent_1" targetRef="Task_1f10etw" />
+    <bpmn2:sequenceFlow id="SequenceFlow_0g0x4st" sourceRef="Task_1f10etw" targetRef="EndEvent_NotTaken" />
+    <bpmn2:userTask id="Task_1f10etw" name="User 1" camunda:modelerTemplate="com.camunda.demo.environment.waitstate">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="100" />
+          <camunda:property name="durationSd" value="10" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0lgfp9e</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_0g0x4st</bpmn2:outgoing>
+    </bpmn2:userTask>
+    <bpmn2:endEvent id="EndEvent_Taken" name="Taken">
+      <bpmn2:incoming>SequenceFlow_0erxlj1</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0erxlj1" sourceRef="BoundaryEvent_1z09f6z" targetRef="EndEvent_Taken" />
+    <bpmn2:boundaryEvent id="BoundaryEvent_1z09f6z" name="R/PT10S" cancelActivity="false" attachedToRef="Task_1f10etw">
+      <bpmn2:outgoing>SequenceFlow_0erxlj1</bpmn2:outgoing>
+      <bpmn2:timerEventDefinition>
+        <bpmn2:timeCycle xsi:type="bpmn2:tFormalExpression">R/PT10S</bpmn2:timeCycle>
+      </bpmn2:timerEventDefinition>
+    </bpmn2:boundaryEvent>
+  </bpmn2:process>
+  <bpmn2:message id="Message_1" name="SOME_MESSAGE" />
+  <bpmn2:message id="Message_2" name="ANOTHER_MESSAGE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="cycleBoundaryTimer">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_8" bpmnElement="StartEvent_1">
+        <dc:Bounds x="12" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="30" y="200" width="0" height="0" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_04ucxlk_di" bpmnElement="EndEvent_NotTaken">
+        <dc:Bounds x="255" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="250" y="198" width="47" height="12" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0lgfp9e_di" bpmnElement="SequenceFlow_0lgfp9e">
+        <di:waypoint xsi:type="dc:Point" x="48" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="100" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="29" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_0g0x4st_di" bpmnElement="SequenceFlow_0g0x4st">
+        <di:waypoint xsi:type="dc:Point" x="200" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="255" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="227.5" y="155.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="UserTask_1l7u4n9_di" bpmnElement="Task_1f10etw">
+        <dc:Bounds x="100" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_0a7be0l_di" bpmnElement="EndEvent_Taken">
+        <dc:Bounds x="255" y="250" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="258" y="289" width="30" height="12" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0erxlj1_di" bpmnElement="SequenceFlow_0erxlj1">
+        <di:waypoint xsi:type="dc:Point" x="150" y="235" />
+        <di:waypoint xsi:type="dc:Point" x="150" y="268" />
+        <di:waypoint xsi:type="dc:Point" x="255" y="268" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="165" y="245" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="BoundaryEvent_06nj3p3_di" bpmnElement="BoundaryEvent_1z09f6z">
+        <dc:Bounds x="132" y="199" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="90" y="229" width="45" height="12" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
