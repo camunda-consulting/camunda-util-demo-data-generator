@@ -68,7 +68,7 @@ public class DemoDataGeneratorTest {
     // assertThat(pi).isEnded();
   }
 
-  @Test
+  //@Test
   @Deployment(resources = "externalTask.bpmn")
   public void testExternalTask() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
