@@ -57,7 +57,7 @@ public class DemoDataGeneratorTest {
   public void testSimulationDrive() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("simulate") //
-        .numberOfDaysInPast(1) //
+        .numberOfDaysInPast(2) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
     generator.generateData();
 
@@ -68,17 +68,18 @@ public class DemoDataGeneratorTest {
     // assertThat(pi).isEnded();
   }
 
-  //@Test
+  @Test
   @Deployment(resources = "externalTask.bpmn")
   public void testExternalTask() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("externalTask") //
-        .numberOfDaysInPast(1) //
+        .numberOfDaysInPast(2) //
         .timeBetweenStartsBusinessDays(600.0, 100.0);
     generator.generateData();
 
     long runned = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished().processDefinitionKey("externalTask").count();
-    assert (runned > 100);
+    // we have at least every 740 seconds a finish and run at least 24h
+    assert (runned > 115);
   }
 
   @Test
@@ -86,23 +87,25 @@ public class DemoDataGeneratorTest {
   public void testMessageBoundary() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("boundaryMessage") //
-        .numberOfDaysInPast(1) //
+        .numberOfDaysInPast(2) //
         .timeBetweenStartsBusinessDays(600.0, 100.0);
     generator.generateData();
 
-    long taken = processEngine().getHistoryService().createHistoricActivityInstanceQuery().processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage"))
-        .activityId("EndEvent_Taken").count();
-    long notTaken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
-        .processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage")).activityId("EndEvent_NotTaken").count();
-    double all = taken + notTaken; // force floating point later
+    long runned = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished().processDefinitionKey("boundaryMessage").count();
 
-    LOG.debug(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
+    long taken1 = processEngine().getHistoryService().createHistoricActivityInstanceQuery().processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage"))
+        .activityId("EndEvent_Taken1").count();
+    long notTaken1 = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage")).activityId("EndEvent_NotTaken1").count();
+    long taken2 = processEngine().getHistoryService().createHistoricActivityInstanceQuery().processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage"))
+        .activityId("EndEvent_Taken2").count();
+    long notTaken2 = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("boundaryMessage")).activityId("EndEvent_NotTaken2").count();
 
-    // near to fifty fifty
-    assert (Math.abs(taken / all) > 0.4);
-    assert (Math.abs(taken / all) < 0.6);
-    assert (Math.abs(notTaken / all) > 0.4);
-    assert (Math.abs(notTaken / all) < 0.6);
+    assert (taken1 + 10 > runned);
+    assert (taken2 == 0);
+    assert (notTaken2 + 10 > runned);
+    assert (notTaken1 == 0);
   }
 
   @Test
@@ -110,7 +113,7 @@ public class DemoDataGeneratorTest {
   public void testCycleBoundaryTimer() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("cycleBoundaryTimer") //
-        .numberOfDaysInPast(1) //
+        .numberOfDaysInPast(2) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0);
     generator.generateData();
 
@@ -120,7 +123,7 @@ public class DemoDataGeneratorTest {
         .processDefinitionId(getProcessDefinitionIdByKey("cycleBoundaryTimer")).activityId("EndEvent_NotTaken").count();
     double all = taken + notTaken; // force floating point later
 
-    LOG.debug(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
+    LOG.info(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
 
     // take timer roughly ten times before finish user task
     assert (Math.abs(taken / all) > 0.8);
@@ -138,8 +141,8 @@ public class DemoDataGeneratorTest {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("repeatCallActivityMain") //
         .additionalModelKeys("repeatCallActivitySub") //
-        .numberOfDaysInPast(1) //
-        .timeBetweenStartsBusinessDays(6000.0, 1.0);
+        .numberOfDaysInPast(2) //
+        .timeBetweenStartsBusinessDays(600.0, 100.0);
     generator.generateData();
 
     long taken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
@@ -148,7 +151,7 @@ public class DemoDataGeneratorTest {
         .processDefinitionId(getProcessDefinitionIdByKey("repeatCallActivityMain")).activityId("EndEvent_NotTaken").count();
     double all = taken + notTaken; // force floating point later
 
-    LOG.debug(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
+    LOG.info(taken / all * 100 + "% taken, " + notTaken / all * 100 + "% not taken");
 
     // we expect call activitiy to be run 2 times per main run
     assert (taken > notTaken * 1.9);
@@ -181,7 +184,7 @@ public class DemoDataGeneratorTest {
   public void testInsuranceApplicationWithCmmn() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("insurance-application") //
-        .numberOfDaysInPast(1) //
+        .numberOfDaysInPast(2) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
     generator.generateData();
 

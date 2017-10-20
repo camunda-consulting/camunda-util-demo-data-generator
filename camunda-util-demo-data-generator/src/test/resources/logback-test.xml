@@ -22,7 +22,7 @@
   <logger name="org.camunda" level="DEBUG"/>
 -->
 
-  <logger name="org.camunda.bpm.engine.test" level="debug" />
+  <logger name="org.camunda.bpm.engine.test" level="info" />
 
 <!--
   <logger name="org.camunda.bpm.engine.bpmn.parser" level="debug" />
@@ -48,7 +48,7 @@
   <logger name="org.camunda.bpm.container" level="debug" />
 -->
 
-  <root level="debug">
+  <root level="info">
     <appender-ref ref="STDOUT" />
   </root>
 
