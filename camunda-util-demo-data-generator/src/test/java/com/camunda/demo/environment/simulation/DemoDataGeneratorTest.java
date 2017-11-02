@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import com.camunda.demo.environment.DemoDataGenerator;
 
+import ch.qos.logback.core.net.SyslogOutputStream;
+
 /**
  * Test case starting an in-memory database-backed Process Engine.
  */
@@ -57,7 +59,10 @@ public class DemoDataGeneratorTest {
   public void testSimulationDrive() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("simulate") //
-        .numberOfDaysInPast(2) //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
     generator.generateData();
 
@@ -73,7 +78,10 @@ public class DemoDataGeneratorTest {
   public void testExternalTask() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("externalTask") //
-        .numberOfDaysInPast(2) //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
         .timeBetweenStartsBusinessDays(600.0, 100.0);
     generator.generateData();
 
@@ -87,7 +95,10 @@ public class DemoDataGeneratorTest {
   public void testMessageBoundary() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("boundaryMessage") //
-        .numberOfDaysInPast(2) //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
         .timeBetweenStartsBusinessDays(600.0, 100.0);
     generator.generateData();
 
@@ -113,7 +124,10 @@ public class DemoDataGeneratorTest {
   public void testCycleBoundaryTimer() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("cycleBoundaryTimer") //
-        .numberOfDaysInPast(2) //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0);
     generator.generateData();
 
@@ -141,8 +155,11 @@ public class DemoDataGeneratorTest {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
         .processDefinitionKey("repeatCallActivityMain") //
         .additionalModelKeys("repeatCallActivitySub") //
-        .numberOfDaysInPast(2) //
-        .timeBetweenStartsBusinessDays(600.0, 100.0);
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
+        .timeBetweenStartsBusinessDays(6000.0, 100.0);
     generator.generateData();
 
     long taken = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
@@ -159,8 +176,25 @@ public class DemoDataGeneratorTest {
   }
 
   @Test
-  @Deployment(resources = { "runOnce.bpmn", "runAlways.bpmn" })
+  @Deployment(resources = { "signal.bpmn" })
+  public void testSignal() {
+    DemoDataGenerator.autoGenerateFor(processEngine(), "signalMaster", null, "signalSlave");
+
+    double finished = processEngine().getHistoryService().createHistoricActivityInstanceQuery().processDefinitionId(getProcessDefinitionIdByKey("signalSlave"))
+        .activityId("EndEvent_Finished").count();
+    double interrupted = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("signalSlave")).activityId("EndEvent_Interrupted").count();
+    double total = finished + interrupted;
+
+    assert (interrupted / total > 0.3);
+    assert (interrupted / total < 0.7);
+  }
+
+  @Test
+  @Deployment(resources = { "runAlways.bpmn", "runOnce.bpmn" })
   public void testRunAlways() {
+    repositoryService().createProcessDefinitionQuery().list().stream().map(ProcessDefinition::getKey).forEach(System.out::println);
+    
     DemoDataGenerator.autoGenerateFor(processEngine(), "runOnce", null);
     long firstRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runOnce").count();
 

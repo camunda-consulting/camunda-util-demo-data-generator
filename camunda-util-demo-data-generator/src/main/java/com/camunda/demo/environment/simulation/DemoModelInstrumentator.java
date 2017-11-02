@@ -5,8 +5,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
 
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -58,6 +61,7 @@ public class DemoModelInstrumentator {
 
   private Map<String, String> originalModels = new HashMap<String, String>();
   private Map<String, String> tweakedModels = new HashMap<String, String>();
+  private Set<String> tweakedProcessKeys = new HashSet<>();
 
   public DemoModelInstrumentator(ProcessEngine engine, ProcessApplicationReference processApplicationReference) {
     this.engine = (ProcessEngineImpl) engine;
@@ -99,7 +103,7 @@ public class DemoModelInstrumentator {
   // tweakDecisionDefinition(decisionDefinitionKey);
   // }
 
-  public void deployTweakedModels() {
+  public String deployTweakedModels() {
     LOG.info("Starting deployment of tweaked models for demo data generation");
     try {
       DeploymentBuilder deploymentBuilder = engine.getRepositoryService().createDeployment();
@@ -107,10 +111,12 @@ public class DemoModelInstrumentator {
         deploymentBuilder.addInputStream(model.getKey(), new ByteArrayInputStream(model.getValue().getBytes("UTF-8")));
       }
       Deployment deployment = deploymentBuilder.deploy();
-      if (processApplicationReference != null) {
-        engine.getManagementService().registerProcessApplication(deployment.getId(), processApplicationReference);
-      }
+      // if (processApplicationReference != null) {
+      // engine.getManagementService().registerProcessApplication(deployment.getId(),
+      // processApplicationReference);
+      // }
       LOG.info("Deployed tweaked modes for demo data generation with deployment " + deployment.getId());
+      return deployment.getId();
     } catch (Exception ex) {
       throw new RuntimeException("Could not deploy tweaked process definition", ex);
     }
@@ -133,7 +139,11 @@ public class DemoModelInstrumentator {
     }
   }
 
-  protected String tweakProcessDefinition(String processDefinitionKey) {
+  protected void tweakProcessDefinition(String processDefinitionKey) {
+    if (tweakedProcessKeys.contains(processDefinitionKey)) {
+      return;
+    }
+
     LOG.info("tweak process definition " + processDefinitionKey);
 
     ProcessDefinition processDefinition = engine.getRepositoryService().createProcessDefinitionQuery() //
@@ -162,14 +172,18 @@ public class DemoModelInstrumentator {
 
     Collection<ModelElementInstance> serviceTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(ServiceTask.class));
     Collection<ModelElementInstance> sendTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(SendTask.class));
-    //Collection<ModelElementInstance> receiveTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(ReceiveTask.class));
+    // Collection<ModelElementInstance> receiveTasks =
+    // bpmn.getModelElementsByType(bpmn.getModel().getType(ReceiveTask.class));
     Collection<ModelElementInstance> businessRuleTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(BusinessRuleTask.class));
-    //Collection<ModelElementInstance> scriptTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(ScriptTask.class));
+    // Collection<ModelElementInstance> scriptTasks =
+    // bpmn.getModelElementsByType(bpmn.getModel().getType(ScriptTask.class));
     Collection<ModelElementInstance> userTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(UserTask.class));
     Collection<ModelElementInstance> executionListeners = bpmn.getModelElementsByType(bpmn.getModel().getType(CamundaExecutionListener.class));
-    //Collection<ModelElementInstance> taskListeners = bpmn.getModelElementsByType(bpmn.getModel().getType(CamundaTaskListener.class));
+    // Collection<ModelElementInstance> taskListeners =
+    // bpmn.getModelElementsByType(bpmn.getModel().getType(CamundaTaskListener.class));
     Collection<ModelElementInstance> xorGateways = bpmn.getModelElementsByType(bpmn.getModel().getType(ExclusiveGateway.class));
-    //Collection<ModelElementInstance> orGateways = bpmn.getModelElementsByType(bpmn.getModel().getType(InclusiveGateway.class));
+    // Collection<ModelElementInstance> orGateways =
+    // bpmn.getModelElementsByType(bpmn.getModel().getType(InclusiveGateway.class));
 
     Collection<ModelElementInstance> scripts = bpmn.getModelElementsByType(bpmn.getModel().getType(CamundaScript.class));
 
@@ -244,7 +258,9 @@ public class DemoModelInstrumentator {
     String xmlString = Bpmn.convertToString(bpmn);
     tweakedModels.put(processDefinitionKey + ".bpmn", xmlString);
     LOG.debug("-----TWEAKED-----\n-----TWEAKED-----\n-----\n" + xmlString + "\n------");
-    return xmlString;
+
+    // store all contained process keys for not tweaking them twice
+    bpmn.getModelElementsByType(bpmn.getModel().getType(Process.class)).forEach(instance -> tweakedProcessKeys.add((((Process) instance).getId())));
   }
 
   protected void tweakGateway(ExclusiveGateway xorGateway) {
@@ -258,11 +274,7 @@ public class DemoModelInstrumentator {
     Collection<SequenceFlow> flows = xorGateway.getOutgoing();
     if (flows.size() > 1) { // if outgoing flows = 1 it is a joining gateway
       for (SequenceFlow sequenceFlow : flows) {
-        String camundaProperty = readCamundaProperty(sequenceFlow, "probability");
-        double probability = 1; // default
-        if (camundaProperty != null) {
-          probability = Double.valueOf(camundaProperty);
-        }
+        double probability = readCamundaProperty(sequenceFlow, "probability").map(Double::valueOf).orElse(1.0);
 
         ConditionExpression conditionExpression = bpmn.newInstance(ConditionExpression.class);
         conditionExpression.setTextContent("#{" + var + " >= " + probabilitySum + " && " + var + " < " + (probabilitySum + probability) + "}");
@@ -422,21 +434,16 @@ public class DemoModelInstrumentator {
     }
   }
 
-  public static String readCamundaProperty(BaseElement modelElementInstance, String propertyName) {
+  public static Optional<String> readCamundaProperty(BaseElement modelElementInstance, String propertyName) {
     if (modelElementInstance.getExtensionElements() == null) {
-      return null;
+      return Optional.empty();
     }
-    Collection<CamundaProperty> properties = modelElementInstance.getExtensionElements().getElementsQuery() //
-        .filterByType(CamundaProperties.class) //
-        .singleResult() //
-        .getCamundaProperties();
-    for (CamundaProperty property : properties) {
-      // in 7.1 one has to use: property.getAttributeValue("name")
-      if (propertyName.equals(property.getCamundaName())) {
-        return property.getCamundaValue();
-      }
-    }
-    return null;
+    return modelElementInstance.getExtensionElements().getElementsQuery().filterByType(CamundaProperties.class).list().stream() //
+        .map(CamundaProperties::getCamundaProperties) //
+        .flatMap(Collection::stream) //
+        .filter(property -> property.getCamundaName().equals(propertyName)) //
+        .map(CamundaProperty::getCamundaValue) //
+        .findFirst();
   }
 
 }

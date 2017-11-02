@@ -6,7 +6,7 @@
         <camunda:property name="simulateNumberOfDaysInPast" value="1" />
         <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="6000" />
         <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="100" />
-        <camunda:property name="runAlways" value="false" />
+        <camunda:property name="simulateRunAlways" value="false" />
       </camunda:properties>
     </bpmn2:extensionElements>
     <bpmn2:startEvent id="StartEvent_1">

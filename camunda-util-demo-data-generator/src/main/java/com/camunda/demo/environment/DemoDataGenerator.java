@@ -33,74 +33,52 @@ public class DemoDataGenerator {
       String... additionalModelKeys) {
     ProcessDefinition processDefinition = engine.getRepositoryService().createProcessDefinitionQuery().processDefinitionKey(processDefinitionKey)
         .latestVersion().singleResult();
+    if (processDefinition == null) {
+      throw new RuntimeException("Could not find process definition with key '" + processDefinitionKey + "'");
+    }
     autoGenerateFor(engine, processDefinition, processApplicationReference, additionalModelKeys);
   }
 
   public static void autoGenerateFor(ProcessEngine engine, ProcessDefinition processDefinition, ProcessApplicationReference processApplicationReference,
       String... additionalModelKeys) {
     log.info("check auto generation for " + processDefinition);
+
     BpmnModelInstance modelInstance = engine.getRepositoryService().getBpmnModelInstance(processDefinition.getId());
 
-    String numberOfDaysInPast = findProperty(modelInstance, "simulateNumberOfDaysInPast");
-    if (numberOfDaysInPast != null) {
-      autoGenerateFor(engine, processDefinition, Integer.parseInt(numberOfDaysInPast), processApplicationReference, additionalModelKeys);
-    }
-  }
+    String numberOfDaysInPast = findProperty(modelInstance, "simulateNumberOfDaysInPast").orElse("30");
+    String timeBetweenStartsBusinessDaysMean = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysMean").orElse("3600");
+    String timeBetweenStartsBusinessDaysSd = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysSd").orElse("7200");
+    String startBusinessDayAt = findProperty(modelInstance, "simulateStartBusinessDayAt").orElse("8:00");
+    String endBusinessDayAt = findProperty(modelInstance, "simulateStartBusinessDayAt").orElse("18:00");
+    String includeWeekend = findProperty(modelInstance, "simulateIncludeWeekend").orElse("false");
+    boolean runAlways = findProperty(modelInstance, "simulateRunAlways").orElse("false").toLowerCase().equals("true");
 
-  public static void autoGenerateFor(ProcessEngine engine, String processDefinitionKey, int numberOfDaysInThePast,
-      ProcessApplicationReference processApplicationReference, String... additionalModelKeys) {
-    ProcessDefinition processDefinition = engine.getRepositoryService().createProcessDefinitionQuery().processDefinitionKey(processDefinitionKey)
-        .latestVersion().singleResult();
-    if (processDefinition == null) {
-      throw new RuntimeException("Could not find process definition with key '" + processDefinitionKey + "'");
-    }
-    autoGenerateFor(engine, processDefinition, numberOfDaysInThePast, processApplicationReference, additionalModelKeys);
-  }
+    log.info("simulation properties set - auto generation applied (" + numberOfDaysInPast + " days in past, time between mean: "
+        + timeBetweenStartsBusinessDaysMean + " and Standard Deviation: " + timeBetweenStartsBusinessDaysSd);
 
-  public static void autoGenerateFor(ProcessEngine engine, ProcessDefinition processDefinition, int numberOfDaysInPast,
-      ProcessApplicationReference processApplicationReference, String... additionalModelKeys) {
-    BpmnModelInstance modelInstance = engine.getRepositoryService().getBpmnModelInstance(processDefinition.getId());
-
-    boolean runAlways = Optional.ofNullable(findProperty(modelInstance, "runAlways")).map(string -> string.toLowerCase().equals("true")).orElse(false);
-    long count = engine.getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey(processDefinition.getKey())
-        .variableValueEquals(VAR_NAME_GENERATED, true).count();
-    if (runAlways || count == 0) {
-      String timeBetweenStartsBusinessDaysMean = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysMean");
-      if (timeBetweenStartsBusinessDaysMean == null) {
-        timeBetweenStartsBusinessDaysMean = "3600"; // 1 hour
-      }
-      String timeBetweenStartsBusinessDaysSd = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysSd");
-      if (timeBetweenStartsBusinessDaysSd == null) {
-        timeBetweenStartsBusinessDaysSd = "7200"; // 2 hours to get a more
-                                                  // flattered curve
-      }
-
-      log.info("simulation properties set - auto generation applied (" + numberOfDaysInPast + " days in past, time between mean: "
-          + timeBetweenStartsBusinessDaysMean + " and Standard Deviation: " + timeBetweenStartsBusinessDaysSd);
-
-      TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(engine, processApplicationReference) //
-          .processDefinitionKey(processDefinition.getKey()) //
-          .additionalModelKeys(additionalModelKeys) //
-          .numberOfDaysInPast(Integer.valueOf(numberOfDaysInPast)) //
-          .timeBetweenStartsBusinessDays(Integer.valueOf(timeBetweenStartsBusinessDaysMean), Integer.valueOf(timeBetweenStartsBusinessDaysSd));
-
-      generator.generateData();
-    } else {
-      log.info("generation ignored as more than 10 process instances exist");
-    }
+    new TimeAwareDemoGenerator(engine, processApplicationReference) //
+        .processDefinitionKey(processDefinition.getKey()) //
+        .additionalModelKeys(additionalModelKeys) //
+        .numberOfDaysInPast(Integer.valueOf(numberOfDaysInPast)) //
+        .timeBetweenStartsBusinessDays(Integer.valueOf(timeBetweenStartsBusinessDaysMean), Integer.valueOf(timeBetweenStartsBusinessDaysSd))
+        .startTimeBusinessDay(startBusinessDayAt) //
+        .endTimeBusinessDay(endBusinessDayAt) //
+        .includeWeekend(includeWeekend.toLowerCase().equals("true")) //
+        .runAlways(runAlways) //
+        .generateData();
 
   }
 
-  public static String findProperty(BpmnModelInstance modelInstance, String propertyName) {
+  public static Optional<String> findProperty(BpmnModelInstance modelInstance, String propertyName) {
     Collection<CamundaProperties> propertiesList = modelInstance.getModelElementsByType(CamundaProperties.class);
     for (CamundaProperties properties : propertiesList) {
       Collection<CamundaProperty> propertyCollection = properties.getCamundaProperties();
       for (CamundaProperty camundaProperty : propertyCollection) {
         if (propertyName.equals(camundaProperty.getCamundaName())) {
-          return camundaProperty.getCamundaValue();
+          return Optional.of(camundaProperty.getCamundaValue());
         }
       }
     }
-    return null;
+    return Optional.empty();
   }
 }

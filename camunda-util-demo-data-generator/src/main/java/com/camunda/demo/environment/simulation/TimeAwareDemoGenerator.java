@@ -1,8 +1,8 @@
 package com.camunda.demo.environment.simulation;
 
-import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -10,14 +10,16 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.externaltask.ExternalTask;
-import org.camunda.bpm.engine.externaltask.LockedExternalTask;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.history.HistoricCaseInstance;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
@@ -46,11 +48,13 @@ public class TimeAwareDemoGenerator {
 
   private String processDefinitionKey;
   private int numberOfDaysInPast;
+  private int numberOfDaysToSkip;
   private StatisticalDistribution timeBetweenStartsBusinessDays;
-  private String startTimeBusinessDay = "08:30";
-  private String endTimeBusinessDay = "18:00";
+  private String startTimeBusinessDay;
+  private String endTimeBusinessDay;
+  private boolean runAlways;
 
-  private StatisticalDistribution timeBetweenStartsWeekend;
+  private boolean includeWeekend = false;
 
   private DemoModelInstrumentator instrumentator;
 
@@ -64,6 +68,8 @@ public class TimeAwareDemoGenerator {
 
   private String[] additionalModelKeys;
 
+  private String deploymentId;
+
   public TimeAwareDemoGenerator(ProcessEngine engine, ProcessApplicationReference processApplicationReference) {
     this.engine = engine;
     this.processApplicationReference = processApplicationReference;
@@ -74,6 +80,14 @@ public class TimeAwareDemoGenerator {
   }
 
   public void generateData() {
+    long count = engine.getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey(processDefinitionKey)
+        .variableValueEquals(DemoDataGenerator.VAR_NAME_GENERATED, true).count();
+
+    if (count > 0 && (!runAlways)) {
+      LOG.info("Skipped data generation because already generated data found. Set simulateRunAlways=true in bpmn to generate data despite that.");
+      return;
+    }
+
     instrumentator = new DemoModelInstrumentator(engine, processApplicationReference);
     instrumentator.tweakProcessDefinition(processDefinitionKey); // root process
                                                                  // definition
@@ -81,13 +95,14 @@ public class TimeAwareDemoGenerator {
       instrumentator.addAdditionalModels(additionalModelKeys);
     }
 
-    instrumentator.deployTweakedModels();
+    deploymentId = instrumentator.deployTweakedModels();
 
     synchronized (engine) {
       ((ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration()).getJobExecutor().shutdown();
       try {
-        startMultipleProcessInstances();
+        simulate();
       } finally {
+        ClockUtil.reset();
         instrumentator.restoreOriginalModels();
         ((ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration()).getJobExecutor().start();
       }
@@ -100,17 +115,92 @@ public class TimeAwareDemoGenerator {
     }
   }
 
+  protected void simulate() {
+    // fix the real time for whole simulation
+    Date theRealNow = new Date();
+
+    // calculate last time to start
+    Calendar lastTimeToStart = Calendar.getInstance();
+    lastTimeToStart.setTime(theRealNow);
+    lastTimeToStart.add(Calendar.DAY_OF_YEAR, -1 * numberOfDaysToSkip);
+    lastTimeToStart.set(Calendar.HOUR_OF_DAY, 0);
+    lastTimeToStart.set(Calendar.MINUTE, 0);
+
+    Set<String> runningProcessInstanceIds = new TreeSet<>();
+    Set<String> processInstancIdsAlreadyReachedCurrentTime = new HashSet<>();
+    Date nextStartTime = calculateNextStartTime(null, lastTimeToStart.getTime());
+    while (true) {
+      // TODO: Signal
+      Optional<Work<?>> candidate = calculateNextSimulationStep(theRealNow, runningProcessInstanceIds, processInstancIdsAlreadyReachedCurrentTime);
+
+      // check if we are finally done
+      if (!candidate.isPresent() && nextStartTime == null) {
+        break;
+      }
+
+      // check if we have to start a new instance before next simulation step
+      if (nextStartTime != null && (!candidate.isPresent() || candidate.get().getDue().after(nextStartTime))) {
+        // start new instance
+        ClockUtil.setCurrentTime(nextStartTime);
+        ProcessInstance newInstance = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
+            Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
+        runningProcessInstanceIds.add(newInstance.getId());
+        nextStartTime = calculateNextStartTime(nextStartTime, lastTimeToStart.getTime());
+        continue;
+      }
+
+      // we have work, we do work - advancing time if necessary
+      if (candidate.get().getDue().after(ClockUtil.getCurrentTime())) {
+        ClockUtil.setCurrentTime(candidate.get().getDue());
+      }
+      candidate.get().execute(engine);
+    }
+  }
+
+  private Date calculateNextStartTime(Date previousStartTime, Date latestStartTime) {
+    Calendar nextStartTime = Calendar.getInstance();
+    if (previousStartTime == null) {
+      nextStartTime = Calendar.getInstance();
+      nextStartTime.add(Calendar.DAY_OF_YEAR, -1 * numberOfDaysInPast);
+      nextStartTime.set(Calendar.HOUR_OF_DAY, 0);
+      nextStartTime.set(Calendar.MINUTE, 0);
+    } else {
+      nextStartTime.setTime(previousStartTime);
+    }
+
+    while (!nextStartTime.getTime().after(latestStartTime)) {
+      // business day (OK - simplified - do not take holidays into
+      // account)
+      double time = timeBetweenStartsBusinessDays.nextSample();
+      nextStartTime.add(Calendar.SECOND, (int) Math.round(time));
+      if ((!includeWeekend) && (nextStartTime.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || nextStartTime.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)) {
+        continue;
+      }
+      if (!isInTimeFrame(nextStartTime, startTimeBusinessDay, endTimeBusinessDay)) {
+        continue;
+      }
+      return nextStartTime.getTime();
+    }
+
+    // we ran behind latestStartTime
+    return null;
+  }
+
+  private Date cachedDayStartTime = null;
+  private Date cachedDayEndTime = null;
+
   private boolean isInTimeFrame(Calendar cal, String startTime, String endTime) {
     try {
-      // TODO: maybe cache?
-      Date startDate = new SimpleDateFormat("HH:mm").parse(startTime);
-      Date endDate = new SimpleDateFormat("HH:mm").parse(endTime);
+      if (cachedDayStartTime == null || cachedDayEndTime == null) {
+        cachedDayStartTime = new SimpleDateFormat("HH:mm").parse(startTime);
+        cachedDayEndTime = new SimpleDateFormat("HH:mm").parse(endTime);
+      }
       Calendar startCal = Calendar.getInstance();
-      startCal.setTime(startDate);
+      startCal.setTime(cachedDayStartTime);
       copyTimeField(cal, startCal, Calendar.YEAR, Calendar.DAY_OF_YEAR);
 
       Calendar endCal = Calendar.getInstance();
-      endCal.setTime(endDate);
+      endCal.setTime(cachedDayEndTime);
       copyTimeField(cal, endCal, Calendar.YEAR, Calendar.DAY_OF_YEAR);
 
       return (startCal.before(cal) && cal.before(endCal));
@@ -119,67 +209,46 @@ public class TimeAwareDemoGenerator {
     }
   }
 
-  protected void startMultipleProcessInstances() {
-    try {
-      LOG.info("start multiple process instances for " + numberOfDaysInPast + " workingdays in the past");
+  protected Optional<Work<?>> calculateNextSimulationStep(Date theRealNow, Set<String> runningProcessInstanceIds,
+      Set<String> processInstancIdsAlreadyReachedCurrentTime) {
+    if (runningProcessInstanceIds.isEmpty()) {
+      return Optional.empty();
+    }
 
-      long counter = 0;
+    /* collect all started process instances by events or whatever */
+    engine.getRuntimeService().createProcessInstanceQuery().deploymentId(deploymentId).list().stream() //
+        .map(ProcessInstance::getId) //
+        .filter(id -> !processInstancIdsAlreadyReachedCurrentTime.contains(id)) //
+        .forEach(runningProcessInstanceIds::add);
+    /* collect all previously started call activities */
+    for (ProcessInstance pi : engine.getRuntimeService().createProcessInstanceQuery().processInstanceIds(runningProcessInstanceIds).list()) {
+      engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream() //
+          // early filter out already stopped ones
+          .filter(historicCallActivity -> !processInstancIdsAlreadyReachedCurrentTime.contains(historicCallActivity.getCalledProcessInstanceId()))
+          .map(HistoricActivityInstance::getCalledProcessInstanceId) //
+          .filter(o -> o != null) // case instances
+          .forEach(runningProcessInstanceIds::add);
+    }
 
-      // for all desired days in past
-      for (int i = numberOfDaysInPast; i >= 0; i--) {
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.DAY_OF_YEAR, -1 * i);
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
+    /* get all doable work of all running (process|call activity) instances */
+    List<Work<?>> candidates = new LinkedList<>();
+    for (ProcessInstance pi : engine.getRuntimeService().createProcessInstanceQuery().processInstanceIds(runningProcessInstanceIds).list()) {
 
-        int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
-
-        // now lets start process instances on that day
-        if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-          // weekend
-        } else {
-          while (cal.get(Calendar.DAY_OF_YEAR) == dayOfYear) {
-            // business day (OK - simplified - do not take holidays into
-            // account)
-            double time = timeBetweenStartsBusinessDays.nextSample();
-            cal.add(Calendar.SECOND, (int) Math.round(time));
-            if (isInTimeFrame(cal, startTimeBusinessDay, endTimeBusinessDay)) {
-              ClockUtil.setCurrentTime(cal.getTime());
-
-              System.out.print(".");
-              runSingleProcessInstance();
-
-              LOG.debug("Currently " + ++counter + " process instances are finished.");
-
-              // Housekeeping for safety (as the run might have changed the
-              // clock)
-              ClockUtil.setCurrentTime(cal.getTime());
-            }
-          }
-        }
+      // if a process calls a call activity, we straight put it to the list of
+      // running processes and start over
+      List<String> newCallActivities = engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId())
+          .activityType("callActivity").list().stream() //
+          // early filter out already stopped ones
+          .filter(historicCallActivity -> !processInstancIdsAlreadyReachedCurrentTime.contains(historicCallActivity.getCalledProcessInstanceId()))
+          // and already running ones
+          .filter(historicCallActivity -> !runningProcessInstanceIds.contains(historicCallActivity.getCalledProcessInstanceId())) //
+          .map(HistoricActivityInstance::getCalledProcessInstanceId) //
+          .collect(Collectors.toList());
+      if (!newCallActivities.isEmpty()) {
+        runningProcessInstanceIds.addAll(newCallActivities);
+        break;
       }
 
-    } finally {
-      ClockUtil.reset();
-    }
-  }
-
-  protected void runSingleProcessInstance() {
-    ProcessInstance pi = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
-        Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
-    try {
-      driveProcessInstance(pi);
-    } catch (ReachedCurrentTimeException e) {
-      // no problem
-    }
-  }
-
-  protected void driveProcessInstance(ProcessInstance pi) throws ReachedCurrentTimeException {
-    Set<String> processInstancesAlreadyReachedCurrentTime = new HashSet<>();
-    while (true) {
-      // TODO: Signal
-
-      /* get all work and add it to */
       List<Work<?>> todo = new LinkedList<>();
       engine.getTaskService().createTaskQuery().processInstanceId(pi.getId()).active().list().stream() //
           .map(task -> new TaskWork(task, pi)) //
@@ -200,41 +269,32 @@ public class TimeAwareDemoGenerator {
       engine.getManagementService().createJobQuery().processInstanceId(pi.getId()).active().list().stream() //
           .map(job -> new JobWork(job, pi)) //
           .forEach(todo::add);
-      engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream() //
-          // early filter out already stopped ones
-          .filter(historicCallActivity -> !processInstancesAlreadyReachedCurrentTime.contains(historicCallActivity.getCalledProcessInstanceId()))
-          .map(callActivity -> new CallActivityWork(callActivity, pi)) //
-          .forEach(todo::add);
 
       // try to find something executable: first come first serve, but nothing
       // in "real" future
-      Date theRealNow = new Date();
-      Optional<Work<?>> candidate = todo.stream() //
+      Optional<Work<?>> candidateOfProcessInstance = todo.stream() //
           .filter(work -> !work.getDue().after(theRealNow)) //
           .min((workA, workB) -> workA.getDue().compareTo(workB.getDue()));
 
       // if there is no work to do, we are done -- if everything would be so
       // easy
-      if (!candidate.isPresent()) {
+      if (!candidateOfProcessInstance.isPresent()) {
+        runningProcessInstanceIds.remove(pi.getId());
         if (todo.isEmpty()) {
           LOG.debug("Instance " + pi.getId() + " finished (no work anymore).");
         } else {
           LOG.debug("Instance " + pi.getId() + " reached current time -- stopping.");
-          throw new ReachedCurrentTimeException(pi.getId());
+          processInstancIdsAlreadyReachedCurrentTime.add(pi.getId());
         }
-        break;
-      }
-
-      // we have work, we do work - advancing time if necessary
-      if (candidate.get().getDue().after(ClockUtil.getCurrentTime())) {
-        ClockUtil.setCurrentTime(candidate.get().getDue());
-      }
-      try {
-        candidate.get().execute(engine);
-      } catch (ReachedCurrentTimeException e) {
-        processInstancesAlreadyReachedCurrentTime.add(e.getProcessInstanceId());
+      } else {
+        candidates.add(candidateOfProcessInstance.get());
       }
     }
+
+    Optional<Work<?>> candidate = candidates.stream() //
+        .min((workA, workB) -> workA.getDue().compareTo(workB.getDue()));
+
+    return candidate;
   }
 
   private void driveCaseInstance(CaseInstance caseInstance) {
@@ -290,7 +350,7 @@ public class TimeAwareDemoGenerator {
 
     abstract protected Date calculateNewRandomDue();
 
-    final public void execute(ProcessEngine engine) throws ReachedCurrentTimeException {
+    final public void execute(ProcessEngine engine) {
       executeImpl(engine);
       // If we are a recurring job, we have to make sure that due date is newly
       // calculated after each execution. To do so, we simply remove it from
@@ -298,7 +358,7 @@ public class TimeAwareDemoGenerator {
       dueCache.remove(workItem);
     };
 
-    abstract protected void executeImpl(ProcessEngine engine) throws ReachedCurrentTimeException;
+    abstract protected void executeImpl(ProcessEngine engine);
 
     public Date getDue() {
       if (!dueCache.containsKey(workItem)) {
@@ -419,44 +479,13 @@ public class TimeAwareDemoGenerator {
 
   }
 
-  class CallActivityWork extends Work<HistoricActivityInstance> {
-
-    public CallActivityWork(HistoricActivityInstance workItem, ProcessInstance pi) {
-      super(workItem, pi);
-    }
-
-    @Override
-    protected Date calculateNewRandomDue() {
-      // immediate
-      return ClockUtil.getCurrentTime();
-    }
-
-    @Override
-    public void executeImpl(ProcessEngine engine) throws ReachedCurrentTimeException {
-      if (workItem.getCalledProcessInstanceId() != null) {
-        driveProcessInstance(engine.getRuntimeService().createProcessInstanceQuery().processInstanceId(workItem.getCalledProcessInstanceId()).singleResult());
-      } else if (workItem.getCalledCaseInstanceId() != null) {
-        driveCaseInstance(engine.getCaseService().createCaseInstanceQuery().caseInstanceId(workItem.getCalledCaseInstanceId()).singleResult());
-      }
-    }
-
-  }
-
   protected NormalDistribution createDistributionForElement(ProcessInstance pi, String id) {
     try {
       BaseElement taskElement = engine.getRepositoryService().getBpmnModelInstance(pi.getProcessDefinitionId()).getModelElementById(id);
 
-      double durationMean = 600; // Default = 10 minutes
-      String camundaPropertyMean = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationMean");
-      if (camundaPropertyMean != null) {
-        durationMean = Double.parseDouble(camundaPropertyMean);
-      }
-
-      double durationStandardDeviation = 600; // Default also 10 minutes
-      String camundaPropertySd = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationSd");
-      if (camundaPropertySd != null) {
-        durationStandardDeviation = Double.parseDouble(camundaPropertySd);
-      }
+      // Default = 10 minutes each
+      double durationMean = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationMean").map(Double::valueOf).orElse(600.0);
+      double durationStandardDeviation = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationSd").map(Double::valueOf).orElse(600.0);
 
       NormalDistribution distribution = new NormalDistribution(durationMean, durationStandardDeviation);
       return distribution;
@@ -482,6 +511,31 @@ public class TimeAwareDemoGenerator {
 
   public TimeAwareDemoGenerator numberOfDaysInPast(int numberOfDaysInPast) {
     this.numberOfDaysInPast = numberOfDaysInPast;
+    return this;
+  }
+
+  public TimeAwareDemoGenerator skipLastDays(int numberOfDaysToSkip) {
+    this.numberOfDaysToSkip = numberOfDaysToSkip;
+    return this;
+  }
+
+  public TimeAwareDemoGenerator startTimeBusinessDay(String startTimeBusinessDay) {
+    this.startTimeBusinessDay = startTimeBusinessDay;
+    return this;
+  }
+
+  public TimeAwareDemoGenerator endTimeBusinessDay(String endTimeBusinessDay) {
+    this.endTimeBusinessDay = endTimeBusinessDay;
+    return this;
+  }
+
+  public TimeAwareDemoGenerator includeWeekend(boolean includeWeekend) {
+    this.includeWeekend = includeWeekend;
+    return this;
+  }
+
+  public TimeAwareDemoGenerator runAlways(boolean runAlways) {
+    this.runAlways = runAlways;
     return this;
   }
 

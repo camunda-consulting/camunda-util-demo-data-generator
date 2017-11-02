@@ -14,22 +14,23 @@ import org.camunda.bpm.BpmPlatform;
 import com.camunda.demo.environment.simulation.TimeAwareDemoGenerator;
 
 /**
- * Using a plain servlet to avoid any environment dependency - but to 
- * callable by HTTP.
+ * Using a plain servlet to avoid any environment dependency - but to callable
+ * by HTTP.
  * 
  * Input:
  * <ul>
- *   <li>processDefinitionKey: Process Definition Key (latest version is used)</li>
- *   <li>numberOfDaysInPast: Time Frame - days in the past</li>
- *   <li>timeBetweenStartsBusinessDaysMean: Distribution []</li>
- *   <li>timeBetweenStartsBusinessDaysSd: (Standard Deviation)</li>
+ * <li>processDefinitionKey: Process Definition Key (latest version is
+ * used)</li>
+ * <li>numberOfDaysInPast: Time Frame - days in the past</li>
+ * <li>timeBetweenStartsBusinessDaysMean: Distribution []</li>
+ * <li>timeBetweenStartsBusinessDaysSd: (Standard Deviation)</li>
  * </ul>
  * 
  * @author ruecker
  */
 @WebServlet(value = "/generate", loadOnStartup = 1)
 public class GenerateDemoDataServlet extends HttpServlet {
-  
+
   private static final Logger log = Logger.getLogger(GenerateDemoDataServlet.class.getName());
 
   private static final long serialVersionUID = 1L;
@@ -38,27 +39,33 @@ public class GenerateDemoDataServlet extends HttpServlet {
   protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
     doGet(req, resp);
   }
-  
-  @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-    String processDefinitionKey = req.getParameter("processDefinitionKey");
+  @Override
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {    String processDefinitionKey = req.getParameter("processDefinitionKey");
+    String[] additionalDefinitionKeys = req.getParameter("additionalProcessDefinitionKeys").split(",\\s*");
     int numberOfDaysInPast = Integer.parseInt(req.getParameter("numberOfDaysInPast"));
     double timeBetweenStartsBusinessDaysMean = Double.parseDouble(req.getParameter("timeBetweenStartsBusinessDaysMean"));
     double timeBetweenStartsBusinessDaysSd = Double.parseDouble(req.getParameter("timeBetweenStartsBusinessDaysSd"));
-    
+    String startBusinessDayAt = req.getParameter("startBusinessDayAtHour") + ":" + req.getParameter("startBusinessDayAtMinute");
+    String endBusinessDayAt = req.getParameter("endBusinessDayAtHour") + ":" + req.getParameter("endBusinessDayAtMinute");
+    boolean includeWeekend = req.getParameter("includeWeekend").toLowerCase().equals("true");
+    boolean runAlways = req.getParameter("runAlways").toLowerCase().equals("true");
+
     log.info("start generate data");
-    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(BpmPlatform.getDefaultProcessEngine()) //
-      .processDefinitionKey(processDefinitionKey) //
-      .numberOfDaysInPast(numberOfDaysInPast) //
-      .timeBetweenStartsBusinessDays(timeBetweenStartsBusinessDaysMean, timeBetweenStartsBusinessDaysSd);
-    generator.generateData();
-    
+    new TimeAwareDemoGenerator(BpmPlatform.getDefaultProcessEngine()) //
+        .processDefinitionKey(processDefinitionKey) //
+        .additionalModelKeys(additionalDefinitionKeys) //
+        .numberOfDaysInPast(numberOfDaysInPast) //
+        .timeBetweenStartsBusinessDays(timeBetweenStartsBusinessDaysMean, timeBetweenStartsBusinessDaysSd) //
+        .startTimeBusinessDay(startBusinessDayAt) //
+        .endTimeBusinessDay(endBusinessDayAt) //
+        .includeWeekend(includeWeekend)//
+        .runAlways(runAlways) //
+        .generateData();
+
     log.info("data generation finished");
-    
+
     resp.sendRedirect("index.html");
   }
 
-  
-  
 }
