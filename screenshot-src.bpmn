@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="1.11.2">
+  <bpmn:process id="Process_1" isExecutable="true" camunda:modelerTemplate="com.camunda.demo.environment.process">
+    <bpmn:extensionElements>
+      <camunda:properties>
+        <camunda:property name="simulateNumberOfDaysInPast" value="" />
+        <camunda:property name="simulateIncludeWeekends" value="" />
+        <camunda:property name="simulateStartBusinessDayAt" value="" />
+        <camunda:property name="simulateEndBusinessDayAt" value="" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="" />
+        <camunda:property name="simulateRunAlways" value="" />
+      </camunda:properties>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent_1" name="Process started">
+      <bpmn:outgoing>SequenceFlow_1ghxyz2</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="SequenceFlow_1ghxyz2" sourceRef="StartEvent_1" targetRef="Task_09hznu6" />
+    <bpmn:userTask id="Task_09hznu6" name="Rule the world">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="126144000" />
+          <camunda:property name="durationSd" value="2678400" />
+        </camunda:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>SequenceFlow_1ghxyz2</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_1mqgu38</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="ExclusiveGateway_0hyvxyd" name="Made bad decisions?">
+      <bpmn:incoming>SequenceFlow_1mqgu38</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_0zk7reb</bpmn:outgoing>
+      <bpmn:outgoing>SequenceFlow_0n4log2</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="SequenceFlow_1mqgu38" sourceRef="Task_09hznu6" targetRef="ExclusiveGateway_0hyvxyd" />
+    <bpmn:task id="Task_1bk17ot" name="Don&#39;t care">
+      <bpmn:incoming>SequenceFlow_0zk7reb</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_00rjr8d</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="SequenceFlow_0zk7reb" name="yes" sourceRef="ExclusiveGateway_0hyvxyd" targetRef="Task_1bk17ot">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="probability" value="90" />
+        </camunda:properties>
+      </bpmn:extensionElements>
+    </bpmn:sequenceFlow>
+    <bpmn:task id="Task_1hsbt9k" name="Congrat yourself">
+      <bpmn:incoming>SequenceFlow_0n4log2</bpmn:incoming>
+      <bpmn:outgoing>SequenceFlow_0jjfapx</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="SequenceFlow_0n4log2" name="no" camunda:modelerTemplate="com.camunda.demo.environment.probability" sourceRef="ExclusiveGateway_0hyvxyd" targetRef="Task_1hsbt9k">
+      <bpmn:extensionElements>
+        <camunda:properties>
+          <camunda:property name="probability" value="" />
+        </camunda:properties>
+      </bpmn:extensionElements>
+    </bpmn:sequenceFlow>
+    <bpmn:endEvent id="EndEvent_1b4gqi2">
+      <bpmn:incoming>SequenceFlow_00rjr8d</bpmn:incoming>
+      <bpmn:incoming>SequenceFlow_0jjfapx</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="SequenceFlow_00rjr8d" sourceRef="Task_1bk17ot" targetRef="EndEvent_1b4gqi2" />
+    <bpmn:sequenceFlow id="SequenceFlow_0jjfapx" sourceRef="Task_1hsbt9k" targetRef="EndEvent_1b4gqi2" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="173" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="153" y="138" width="77" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_1ghxyz2_di" bpmnElement="SequenceFlow_1ghxyz2">
+        <di:waypoint xsi:type="dc:Point" x="209" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="262" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="262" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="322" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="277" y="113.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="UserTask_1ee1dqw_di" bpmnElement="Task_09hznu6">
+        <dc:Bounds x="322" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ExclusiveGateway_0hyvxyd_di" bpmnElement="ExclusiveGateway_0hyvxyd" isMarkerVisible="true">
+        <dc:Bounds x="525" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="524" y="66" width="52" height="25" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_1mqgu38_di" bpmnElement="SequenceFlow_1mqgu38">
+        <di:waypoint xsi:type="dc:Point" x="422" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="525" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="473.5" y="98" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_1bk17ot_di" bpmnElement="Task_1bk17ot">
+        <dc:Bounds x="778" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0zk7reb_di" bpmnElement="SequenceFlow_0zk7reb">
+        <di:waypoint xsi:type="dc:Point" x="575" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="778" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="593" y="99" width="18" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_1hsbt9k_di" bpmnElement="Task_1hsbt9k">
+        <dc:Bounds x="778" y="211" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0n4log2_di" bpmnElement="SequenceFlow_0n4log2">
+        <di:waypoint xsi:type="dc:Point" x="550" y="145" />
+        <di:waypoint xsi:type="dc:Point" x="550" y="251" />
+        <di:waypoint xsi:type="dc:Point" x="778" y="251" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="559" y="156" width="13" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="EndEvent_1b4gqi2_di" bpmnElement="EndEvent_1b4gqi2">
+        <dc:Bounds x="997" y="171" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1015" y="210" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_00rjr8d_di" bpmnElement="SequenceFlow_00rjr8d">
+        <di:waypoint xsi:type="dc:Point" x="878" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="938" y="120" />
+        <di:waypoint xsi:type="dc:Point" x="938" y="189" />
+        <di:waypoint xsi:type="dc:Point" x="997" y="189" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="953" y="147.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_0jjfapx_di" bpmnElement="SequenceFlow_0jjfapx">
+        <di:waypoint xsi:type="dc:Point" x="878" y="251" />
+        <di:waypoint xsi:type="dc:Point" x="938" y="251" />
+        <di:waypoint xsi:type="dc:Point" x="938" y="189" />
+        <di:waypoint xsi:type="dc:Point" x="997" y="189" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="953" y="213" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

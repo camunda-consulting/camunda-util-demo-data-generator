@@ -16,6 +16,33 @@
 	      }
 	    },
 	    {
+	      "label": "Include Weekends",
+	      "type": "Boolean",
+	      "editable": true,
+	      "binding": {
+	        "type": "camunda:property",
+	        "name": "simulateIncludeWeekends"
+	      }
+	    },
+	    {
+	      "label": "Business Day Starts at (hh:mm)",
+	      "type": "Text",
+	      "editable": true,
+	      "binding": {
+	        "type": "camunda:property",
+	        "name": "simulateStartBusinessDayAt"
+	      }
+	    },
+	    {
+	      "label": "Business Day Ends at (hh:mm)",
+	      "type": "Text",
+	      "editable": true,
+	      "binding": {
+	        "type": "camunda:property",
+	        "name": "simulateEndBusinessDayAt"
+	      }
+	    },
+	    {
 	      "label": "Time Between Starts Mean (Seconds)",
 	      "type": "Text",
 	      "editable": true,
@@ -32,7 +59,16 @@
 	        "type": "camunda:property",
 	        "name": "simulateTimeBetweenStartsBusinessDaysSd"
 	      }
-	    }    
+	    },
+	    {
+	      "label": "Run even if there is already generated data",
+	      "type": "Boolean",
+	      "editable": true,
+	      "binding": {
+	        "type": "camunda:property",
+	        "name": "simulateRunAlways"
+	      }
+	    }
 	  ]
 	},
 	{
