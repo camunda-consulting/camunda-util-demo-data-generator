@@ -10,9 +10,28 @@ In order to use the generator you have to [instrument your BPMN for tuning simul
 
 To learn what models that simulator can handle and what it does with the elements, see [Supported BPMN elements](#supported-bpmn-elements)
 
-## How To
+Table of Contents
+=================
+   * [Demo Data Generator](#demo-data-generator)
+   * [How To](#how-to)
+      * [Instrument your BPMN process](#instrument-your-bpmn-process)
+         * [Add Probabilities to all outgoing Sequence Flows on XOR-Gateways:](#add-probabilities-to-all-outgoing-sequence-flows-on-xor-gateways)
+         * [Add Distribution for Duration of Wait States (Tasks, Events):](#add-distribution-for-duration-of-wait-states-tasks-events)
+      * [Start the Generation](#start-the-generation)
+         * [Start via Webapplication](#start-via-webapplication)
+         * [Start in Your Own Application](#start-in-your-own-application)
+   * [Supported BPMN elements](#supported-bpmn-elements)
+      * [Working with unmodified behaviour](#working-with-unmodified-behaviour)
+      * [Working with modified behaviour](#working-with-modified-behaviour)
+      * [Non-Working](#non-working)
+   * [Environment Restrictions](#environment-restrictions)
+   * [Improvements Backlog](#improvements-backlog)
+   * [License](#license)
 
-### Instrument your BPMN process
+
+# How To
+
+## Instrument your BPMN process
 
 *Hint:* All times are expressed in *seconds*.
 
@@ -23,14 +42,14 @@ To make this really easy there are [Element Templates](https://docs.camunda.org/
 ![Element Templates in Camunda Modeler](elementTemplates.png)
 
 
-#### Add Probabilities to all outgoing Sequence Flows on XOR-Gateways:
+### Add Probabilities to all outgoing Sequence Flows on XOR-Gateways:
 
 Extension Attribute: `probability`
 
 ![Probability on Sequence Flow](decisionProbability.png)
 
 
-#### Add Distribution for Duration of Wait States (Tasks, Events):
+### Add Distribution for Duration of Wait States (Tasks, Events):
 
 Set the extension attributes: `durationMean` and `durationSd`
 
@@ -38,9 +57,9 @@ Set the extension attributes: `durationMean` and `durationSd`
 
 for User Tasks, Receive Tasks,  External Tasks, Intermediate Message Events, Boundary Message Events
 
-### Start the Generation
+## Start the Generation
 
-#### Start via Webapplication
+### Start via Webapplication
 
 Deploy the camunda-demo-data-generator-webapp.war.
 
@@ -67,7 +86,7 @@ So you will have instances in the version before the latest version if you look 
 ![Statistics](statistics.png)
 
 
-#### Start in Your Own Application
+### Start in Your Own Application
 
 If you set up demo systems you might want to automatically generate data during startup. E.g. you could build a system were data is cleared every night and regenerated on startup. 
 
