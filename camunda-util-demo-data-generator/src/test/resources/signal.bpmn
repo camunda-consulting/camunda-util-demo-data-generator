@@ -13,6 +13,7 @@
         <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="60" />
         <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="10" />
         <camunda:property name="simulateRunAlways" value="false" />
+        <camunda:property name="simulateIncludeWeekend" value="true" />
       </camunda:properties>
     </bpmn2:extensionElements>
     <bpmn2:sequenceFlow id="SequenceFlow_0lgfp9e" sourceRef="StartEvent_1" targetRef="ExclusiveGateway_0315nyt" />
