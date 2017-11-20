@@ -2,7 +2,6 @@ package com.camunda.demo.environment.simulation;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -10,11 +9,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.camunda.bpm.application.ProcessApplicationReference;
@@ -64,7 +61,8 @@ public class TimeAwareDemoGenerator {
 
   private Map<Object, Date> dueCache = new HashMap<>();
 
-  private ProcessApplicationReference processApplicationReference;
+  private ProcessApplicationReference originalProcessApplication;
+  private ProcessApplicationReference simulatingProcessApplication;
 
   private String[] additionalModelKeys;
 
@@ -72,7 +70,15 @@ public class TimeAwareDemoGenerator {
 
   public TimeAwareDemoGenerator(ProcessEngine engine, ProcessApplicationReference processApplicationReference) {
     this.engine = engine;
-    this.processApplicationReference = processApplicationReference;
+    this.originalProcessApplication = processApplicationReference;
+    this.simulatingProcessApplication = processApplicationReference;
+  }
+
+  public TimeAwareDemoGenerator(ProcessEngine engine, ProcessApplicationReference originalProcessApplicationReference,
+      ProcessApplicationReference simulatingProcessApplicationReference) {
+    this.engine = engine;
+    this.originalProcessApplication = originalProcessApplicationReference;
+    this.simulatingProcessApplication = simulatingProcessApplicationReference;
   }
 
   public TimeAwareDemoGenerator(ProcessEngine processEngine) {
@@ -88,7 +94,7 @@ public class TimeAwareDemoGenerator {
       return;
     }
 
-    instrumentator = new DemoModelInstrumentator(engine, processApplicationReference);
+    instrumentator = new DemoModelInstrumentator(engine, originalProcessApplication, simulatingProcessApplication);
     instrumentator.tweakProcessDefinition(processDefinitionKey); // root process
                                                                  // definition
     if (additionalModelKeys != null) {
@@ -130,7 +136,6 @@ public class TimeAwareDemoGenerator {
     Set<String> processInstancIdsAlreadyReachedCurrentTime = new HashSet<>();
     Date nextStartTime = calculateNextStartTime(null, lastTimeToStart.getTime());
     while (true) {
-      // TODO: Signal
       Optional<Work<?>> candidate = calculateNextSimulationStep(theRealNow, runningProcessInstanceIds, processInstancIdsAlreadyReachedCurrentTime);
 
       // check if we are finally done
@@ -220,35 +225,50 @@ public class TimeAwareDemoGenerator {
         .map(ProcessInstance::getId) //
         .filter(id -> !processInstancIdsAlreadyReachedCurrentTime.contains(id)) //
         .forEach(runningProcessInstanceIds::add);
-    /* collect all previously started call activities */
-    for (ProcessInstance pi : engine.getRuntimeService().createProcessInstanceQuery().processInstanceIds(runningProcessInstanceIds).list()) {
-      engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream() //
-          // early filter out already stopped ones
-          .filter(historicCallActivity -> !processInstancIdsAlreadyReachedCurrentTime.contains(historicCallActivity.getCalledProcessInstanceId()))
-          .map(HistoricActivityInstance::getCalledProcessInstanceId) //
-          .filter(o -> o != null) // case instances
-          .forEach(runningProcessInstanceIds::add);
-    }
+    /*
+     * collect all previously started call activities
+     * 
+     * have to do this "recursively", since a process instance can start a call
+     * activity that starts a call activity that starts a call activity...
+     */
+    List<HistoricActivityInstance> allRunningCallActivities = engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished()
+        .activityType("callActivity").list();
+    long added;
+    do {
+      added = 0;
+      for (HistoricActivityInstance callActivity : allRunningCallActivities) {
+        String calledProcessInstanceId = callActivity.getCalledProcessInstanceId();
+        if (calledProcessInstanceId == null) {
+          // this is a case call activity - no support yet
+          continue;
+        }
+        if (!processInstancIdsAlreadyReachedCurrentTime.contains(calledProcessInstanceId)
+            && runningProcessInstanceIds.contains(callActivity.getProcessInstanceId())) {
+          if (runningProcessInstanceIds.add(calledProcessInstanceId)) {
+            added++;
+          }
+        }
+      }
+    } while (added > 0);
+
+    // TODO: deep call activity stack
+    // for (ProcessInstance pi :
+    // engine.getRuntimeService().createProcessInstanceQuery().processInstanceIds(runningProcessInstanceIds).list())
+    // {
+    // engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream()
+    // //
+    // .map(HistoricActivityInstance::getCalledProcessInstanceId) //
+    // // case instances are not supported right now
+    // .filter(calledProcessInstanceId -> calledProcessInstanceId != null) //
+    // // early filter out already stopped ones
+    // .filter(calledProcessInstanceId ->
+    // !processInstancIdsAlreadyReachedCurrentTime.contains(calledProcessInstanceId))
+    // .forEach(runningProcessInstanceIds::add);
+    // }
 
     /* get all doable work of all running (process|call activity) instances */
     List<Work<?>> candidates = new LinkedList<>();
     for (ProcessInstance pi : engine.getRuntimeService().createProcessInstanceQuery().processInstanceIds(runningProcessInstanceIds).list()) {
-
-      // if a process calls a call activity, we straight put it to the list of
-      // running processes and start over
-      List<String> newCallActivities = engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId())
-          .activityType("callActivity").list().stream() //
-          // early filter out already stopped ones
-          .filter(historicCallActivity -> !processInstancIdsAlreadyReachedCurrentTime.contains(historicCallActivity.getCalledProcessInstanceId()))
-          // and already running ones
-          .filter(historicCallActivity -> !runningProcessInstanceIds.contains(historicCallActivity.getCalledProcessInstanceId())) //
-          .map(HistoricActivityInstance::getCalledProcessInstanceId) //
-          .collect(Collectors.toList());
-      if (!newCallActivities.isEmpty()) {
-        runningProcessInstanceIds.addAll(newCallActivities);
-        break;
-      }
-
       List<Work<?>> todo = new LinkedList<>();
       engine.getTaskService().createTaskQuery().processInstanceId(pi.getId()).active().list().stream() //
           .map(task -> new TaskWork(task, pi)) //

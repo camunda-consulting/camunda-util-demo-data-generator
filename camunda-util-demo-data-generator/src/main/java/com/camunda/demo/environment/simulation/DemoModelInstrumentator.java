@@ -57,15 +57,17 @@ public class DemoModelInstrumentator {
   private static final Logger LOG = LoggerFactory.getLogger(DemoModelInstrumentator.class);
   private ProcessEngineImpl engine;
 
-  private ProcessApplicationReference processApplicationReference;
+  private ProcessApplicationReference originalProcessApplication;
+  private ProcessApplicationReference simulatingProcessApplication;
 
   private Map<String, String> originalModels = new HashMap<String, String>();
   private Map<String, String> tweakedModels = new HashMap<String, String>();
   private Set<String> tweakedProcessKeys = new HashSet<>();
 
-  public DemoModelInstrumentator(ProcessEngine engine, ProcessApplicationReference processApplicationReference) {
+  public DemoModelInstrumentator(ProcessEngine engine, ProcessApplicationReference originalProcessApplication, ProcessApplicationReference simulatingProcessApplication) {
     this.engine = (ProcessEngineImpl) engine;
-    this.processApplicationReference = processApplicationReference;
+    this.originalProcessApplication = originalProcessApplication;
+    this.simulatingProcessApplication = simulatingProcessApplication;
   }
 
   public void addAdditionalModels(String... additionalModelKeys) {
@@ -111,10 +113,9 @@ public class DemoModelInstrumentator {
         deploymentBuilder.addInputStream(model.getKey(), new ByteArrayInputStream(model.getValue().getBytes("UTF-8")));
       }
       Deployment deployment = deploymentBuilder.deploy();
-      // if (processApplicationReference != null) {
-      // engine.getManagementService().registerProcessApplication(deployment.getId(),
-      // processApplicationReference);
-      // }
+      if (simulatingProcessApplication != null) {
+        engine.getManagementService().registerProcessApplication(deployment.getId(), simulatingProcessApplication);
+      }
       LOG.info("Deployed tweaked modes for demo data generation with deployment " + deployment.getId());
       return deployment.getId();
     } catch (Exception ex) {
@@ -130,8 +131,8 @@ public class DemoModelInstrumentator {
         deploymentBuilder.addInputStream(model.getKey(), new ByteArrayInputStream(model.getValue().getBytes("UTF-8")));
       }
       Deployment deployment = deploymentBuilder.deploy();
-      if (processApplicationReference != null) {
-        engine.getManagementService().registerProcessApplication(deployment.getId(), processApplicationReference);
+      if (originalProcessApplication != null) {
+        engine.getManagementService().registerProcessApplication(deployment.getId(), originalProcessApplication);
       }
       LOG.info("Restored original modes after demo data generation with deployment " + deployment.getId());
     } catch (Exception ex) {
@@ -154,9 +155,12 @@ public class DemoModelInstrumentator {
       throw new RuntimeException("Process with key '" + processDefinitionKey + "' not found.");
     }
     // store original process application reference
-    if (processApplicationReference == null) {
-      processApplicationReference = engine.getProcessEngineConfiguration().getProcessApplicationManager()
+    if (originalProcessApplication == null) {
+      originalProcessApplication = engine.getProcessEngineConfiguration().getProcessApplicationManager()
           .getProcessApplicationForDeployment(processDefinition.getDeploymentId());
+      if (simulatingProcessApplication == null) {
+        simulatingProcessApplication = originalProcessApplication;
+      }
     }
 
     BpmnModelInstance bpmn = engine.getRepositoryService().getBpmnModelInstance(processDefinition.getId());
@@ -314,8 +318,8 @@ public class DemoModelInstrumentator {
       throw new RuntimeException("Case with key '" + caseDefinitionKey + "' not found.");
     }
     // store original process application reference
-    if (processApplicationReference == null) {
-      processApplicationReference = engine.getProcessEngineConfiguration().getProcessApplicationManager()
+    if (originalProcessApplication == null) {
+      originalProcessApplication = engine.getProcessEngineConfiguration().getProcessApplicationManager()
           .getProcessApplicationForDeployment(caseDefinition.getDeploymentId());
     }
 
