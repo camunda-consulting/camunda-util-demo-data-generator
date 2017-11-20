@@ -52,7 +52,7 @@ public class GenerateDemoDataServlet extends HttpServlet {
     boolean runAlways = req.getParameter("runAlways").toLowerCase().equals("true");
 
     log.info("start generate data");
-    new TimeAwareDemoGenerator(BpmPlatform.getDefaultProcessEngine()) //
+    new TimeAwareDemoGenerator(BpmPlatform.getDefaultProcessEngine(), null, CamundaBpmProcessApplication.processApplicationReference) //
         .processDefinitionKey(processDefinitionKey) //
         .additionalModelKeys(additionalDefinitionKeys) //
         .numberOfDaysInPast(numberOfDaysInPast) //

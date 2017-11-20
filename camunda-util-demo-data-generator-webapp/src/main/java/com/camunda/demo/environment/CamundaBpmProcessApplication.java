@@ -2,6 +2,7 @@ package com.camunda.demo.environment;
 
 import org.camunda.bpm.application.PostDeploy;
 import org.camunda.bpm.application.ProcessApplication;
+import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.application.impl.ServletProcessApplication;
 import org.camunda.bpm.engine.ProcessEngine;
 
@@ -10,6 +11,7 @@ import org.camunda.bpm.engine.ProcessEngine;
  */
 @ProcessApplication
 public class CamundaBpmProcessApplication extends ServletProcessApplication {
+  public static ProcessApplicationReference processApplicationReference;
 
   /**
    * In a @PostDeploy Hook you can interact with the process engine and access
@@ -17,6 +19,7 @@ public class CamundaBpmProcessApplication extends ServletProcessApplication {
    */
   @PostDeploy
   public void onDeploymentFinished(ProcessEngine processEngine) {
+    processApplicationReference = getReference();
   }
 
 }
