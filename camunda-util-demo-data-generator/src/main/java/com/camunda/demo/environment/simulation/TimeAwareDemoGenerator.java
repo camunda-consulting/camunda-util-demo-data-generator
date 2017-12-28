@@ -18,12 +18,10 @@ import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.externaltask.ExternalTask;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
-import org.camunda.bpm.engine.history.HistoricCaseInstance;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.camunda.bpm.engine.impl.metrics.reporter.DbMetricsReporter;
 import org.camunda.bpm.engine.impl.persistence.entity.TimerEntity;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
-import org.camunda.bpm.engine.runtime.CaseExecution;
-import org.camunda.bpm.engine.runtime.CaseInstance;
 import org.camunda.bpm.engine.runtime.EventSubscription;
 import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
@@ -40,6 +38,8 @@ import com.camunda.demo.environment.DemoDataGenerator;
  * necessary
  */
 public class TimeAwareDemoGenerator {
+
+  public static final int METRIC_INTERVAL_MINUTES = 15;
 
   private static final Logger LOG = LoggerFactory.getLogger(TimeAwareDemoGenerator.class);
 
@@ -104,13 +104,23 @@ public class TimeAwareDemoGenerator {
     deploymentId = instrumentator.deployTweakedModels();
 
     synchronized (engine) {
-      ((ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration()).getJobExecutor().shutdown();
+      ProcessEngineConfigurationImpl processEngineConfigurationImpl = (ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration();
+      processEngineConfigurationImpl.getJobExecutor().shutdown();
+      boolean metrics = processEngineConfigurationImpl.isMetricsEnabled() && processEngineConfigurationImpl.isDbMetricsReporterActivate();
+      if (metrics) {
+        processEngineConfigurationImpl.getDbMetricsReporter().setReporterId("DEMO-DATA-GENERATOR");
+      }
+
       try {
         simulate();
       } finally {
         ClockUtil.reset();
         instrumentator.restoreOriginalModels();
-        ((ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration()).getJobExecutor().start();
+        if (metrics) {
+          processEngineConfigurationImpl.getDbMetricsReporter().reportNow();
+          processEngineConfigurationImpl.getDbMetricsReporter().setReporterId(processEngineConfigurationImpl.getMetricsReporterIdProvider().provideId(engine));
+        }
+        processEngineConfigurationImpl.getJobExecutor().start();
       }
     }
   }
@@ -230,6 +240,8 @@ public class TimeAwareDemoGenerator {
      * 
      * have to do this "recursively", since a process instance can start a call
      * activity that starts a call activity that starts a call activity...
+     * 
+     * In fact we do this here by calculating the transitive hull the hard way.
      */
     List<HistoricActivityInstance> allRunningCallActivities = engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished()
         .activityType("callActivity").list();
@@ -250,21 +262,6 @@ public class TimeAwareDemoGenerator {
         }
       }
     } while (added > 0);
-
-    // TODO: deep call activity stack
-    // for (ProcessInstance pi :
-    // engine.getRuntimeService().createProcessInstanceQuery().processInstanceIds(runningProcessInstanceIds).list())
-    // {
-    // engine.getHistoryService().createHistoricActivityInstanceQuery().unfinished().processInstanceId(pi.getId()).activityType("callActivity").list().stream()
-    // //
-    // .map(HistoricActivityInstance::getCalledProcessInstanceId) //
-    // // case instances are not supported right now
-    // .filter(calledProcessInstanceId -> calledProcessInstanceId != null) //
-    // // early filter out already stopped ones
-    // .filter(calledProcessInstanceId ->
-    // !processInstancIdsAlreadyReachedCurrentTime.contains(calledProcessInstanceId))
-    // .forEach(runningProcessInstanceIds::add);
-    // }
 
     /* get all doable work of all running (process|call activity) instances */
     List<Work<?>> candidates = new LinkedList<>();
@@ -311,52 +308,16 @@ public class TimeAwareDemoGenerator {
       }
     }
 
+    // add the metric job always
+    MetricWork metricWork = new MetricWork(null, null);
+    if (!metricWork.getDue().after(theRealNow)) {
+      candidates.add(metricWork);
+    }
+
     Optional<Work<?>> candidate = candidates.stream() //
         .min((workA, workB) -> workA.getDue().compareTo(workB.getDue()));
 
     return candidate;
-  }
-
-  private void driveCaseInstance(CaseInstance caseInstance) {
-    boolean piRunning = true;
-    while (piRunning) {
-      piRunning = false;
-      List<CaseExecution> activeExecutions = engine.getCaseService().createCaseExecutionQuery().caseInstanceId(caseInstance.getId()).active().list();
-      if (activeExecutions.size() > 0) {
-        for (CaseExecution activeExecution : activeExecutions) {
-          if (activeExecution.getActivityType().equals("casePlanModel")) {
-            // Do this if everything else is done
-            if (activeExecutions.size() == 1) {
-              engine.getCaseService().completeCaseExecution(caseInstance.getId());
-            }
-          } else if (activeExecution.getActivityType().equals("stage")) {
-            // TODO
-            if (activeExecutions.size() == 2) {
-              engine.getCaseService().completeCaseExecution(activeExecution.getId());
-              piRunning = true;
-              break;
-            }
-          } else {
-            // engine.getCaseService().
-            engine.getCaseService().completeCaseExecution(activeExecution.getId());
-            piRunning = true;
-            break;
-          }
-        }
-      }
-
-      // piRunning = (activeExecutions.size() > 0);
-    }
-
-    HistoricCaseInstance historicCaseInstance = engine.getHistoryService().createHistoricCaseInstanceQuery().caseInstanceId(caseInstance.getId())
-        .singleResult();
-    if (historicCaseInstance.isActive()) {
-      engine.getCaseService().completeCaseExecution(caseInstance.getId());
-    }
-    historicCaseInstance = engine.getHistoryService().createHistoricCaseInstanceQuery().caseInstanceId(caseInstance.getId()).singleResult();
-    if (historicCaseInstance.isCompleted() || historicCaseInstance.isTerminated()) {
-      engine.getCaseService().closeCaseInstance(caseInstance.getId());
-    }
   }
 
   abstract class Work<T> {
@@ -370,7 +331,7 @@ public class TimeAwareDemoGenerator {
 
     abstract protected Date calculateNewRandomDue();
 
-    final public void execute(ProcessEngine engine) {
+    public void execute(ProcessEngine engine) {
       executeImpl(engine);
       // If we are a recurring job, we have to make sure that due date is newly
       // calculated after each execution. To do so, we simply remove it from
@@ -402,6 +363,46 @@ public class TimeAwareDemoGenerator {
       cal.add(Calendar.SECOND, (int) Math.round(timeToWait));
 
       return cal.getTime();
+    }
+  }
+
+  private Date nextMetricTime = null;
+
+  class MetricWork extends Work<Object> {
+
+    public MetricWork(Object workItem, ProcessInstance pi) {
+      super(null, null);
+      if (nextMetricTime == null) {
+        nextMetricTime = ClockUtil.getCurrentTime();
+      }
+    }
+
+    @Override
+    public Date getDue() {
+      return nextMetricTime;
+    }
+
+    @Override
+    protected Date calculateNewRandomDue() {
+      // stub
+      throw new RuntimeException("Only getDue() should be called");
+    }
+
+    @Override
+    public void execute(ProcessEngine engine) {
+      Calendar helper = Calendar.getInstance();
+      helper.setTime(nextMetricTime);
+      helper.add(Calendar.MINUTE, METRIC_INTERVAL_MINUTES);
+      nextMetricTime = helper.getTime();
+
+      Optional.ofNullable(((ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration()).getDbMetricsReporter())
+          .ifPresent(DbMetricsReporter::reportNow);
+    }
+
+    @Override
+    protected void executeImpl(ProcessEngine engine) {
+      // stub
+      throw new RuntimeException("Only execute() should be called");
     }
   }
 
