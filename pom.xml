@@ -4,7 +4,7 @@
 
 	<groupId>com.camunda.consulting.util</groupId>
 	<artifactId>camunda-util-demo-data-generator-root</artifactId>
-	<version>0.5.2-SNAPSHOT</version>
+	<version>0.5.2</version>
 	<packaging>pom</packaging>
 
 	<parent>
@@ -57,7 +57,7 @@
 		<url>https://github.com/camunda-consulting/camunda-util-demo-data-generator</url>
 		<connection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-data-generator.git</connection>
 		<developerConnection>scm:git:git@github.com:camunda-consulting/camunda-util-demo-data-generator.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>0.5.2</tag>
 	</scm>
 
 	<distributionManagement>
