@@ -3,7 +3,8 @@
 	  "name": "Demo Data Generator",
 	  "id": "com.camunda.demo.environment.process",
 	  "appliesTo": [
-	    "bpmn:Process"
+	    "bpmn:Process",
+	    "bpmn:Participant"
 	  ],
 	  "properties": [
 	    {
@@ -43,7 +44,7 @@
 	      }
 	    },
 	    {
-	      "label": "Time Between Starts Mean (Seconds)",
+	      "label": "Time Between Starts Mean (ISO8601 duration or Seconds)",
 	      "type": "Text",
 	      "editable": true,
 	      "binding": {
@@ -52,7 +53,7 @@
 	      }
 	    },
 	    {
-	      "label": "Time Between Starts Standard Deviation (Seconds)",
+	      "label": "Time Between Starts Standard Deviation (ISO8601 duration or Seconds)",
 	      "type": "Text",
 	      "editable": true,
 	      "binding": {
@@ -101,7 +102,7 @@
 	  ],
 	  "properties": [
 	    {
-	      "label": "Duration Mean (Seconds)",
+	      "label": "Duration Mean (ISO8601 duration or Seconds)",
 	      "type": "Text",
 	      "editable": true,
 	      "binding": {
@@ -110,7 +111,7 @@
 	      }
 	    },
 	    {
-	      "label": "Duration Standard Deviation (Seconds)",
+	      "label": "Duration Standard Deviation (ISO8601 duration or Seconds)",
 	      "type": "Text",
 	      "editable": true,
 	      "binding": {

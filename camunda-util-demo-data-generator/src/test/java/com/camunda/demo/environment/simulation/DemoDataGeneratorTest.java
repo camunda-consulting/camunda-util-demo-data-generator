@@ -11,6 +11,8 @@ import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 import java.util.List;
 
+import org.camunda.bpm.engine.history.HistoricProcessInstance;
+import org.camunda.bpm.engine.history.HistoricProcessInstanceQuery;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.test.Deployment;
@@ -71,6 +73,28 @@ public class DemoDataGeneratorTest {
     // assertThat(pi).task();
     // complete(task());
     // assertThat(pi).isEnded();
+  }
+
+  @Test
+  @Deployment(resources = "isoTimeAndConstantDistribution.bpmn")
+  public void testIsoTimeAndConstantDistribution() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("isoTimeAndConstantDistribution") //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
+        .timeBetweenStartsBusinessDays(3600.0, 0.0);
+    generator.generateData();
+
+    long epsilon = 1;
+
+    List<HistoricProcessInstance> finished = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
+        .processDefinitionKey("isoTimeAndConstantDistribution").list();
+
+    assertEquals(25, finished.size());
+    assert (finished.stream().map(HistoricProcessInstance::getDurationInMillis)
+        .allMatch(duration -> duration - epsilon < 5400000 && duration + epsilon > 5400000));
   }
 
   @Test
@@ -193,8 +217,6 @@ public class DemoDataGeneratorTest {
   @Test
   @Deployment(resources = { "runAlways.bpmn", "runOnce.bpmn" })
   public void testRunAlways() {
-    repositoryService().createProcessDefinitionQuery().list().stream().map(ProcessDefinition::getKey).forEach(System.out::println);
-    
     DemoDataGenerator.autoGenerateFor(processEngine(), "runOnce", null);
     long firstRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runOnce").count();
 
@@ -211,6 +233,15 @@ public class DemoDataGeneratorTest {
     DemoDataGenerator.autoGenerateFor(processEngine(), "runAlways", null);
     secondRun = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("runAlways").count();
     assert (firstRun < secondRun);
+  }
+
+  @Test
+  @Deployment(resources = "participant.bpmn")
+  public void testParticipant() {
+    DemoDataGenerator.autoGenerateFor(processEngine(), "participant", null);
+    long runned = processEngine().getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey("participant").count();
+
+    assertEquals(25, runned);
   }
 
   // @Test

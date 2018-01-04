@@ -47,9 +47,9 @@ public class DemoDataGenerator {
 
     String numberOfDaysInPast = findProperty(modelInstance, "simulateNumberOfDaysInPast").orElse("30");
     String timeBetweenStartsBusinessDaysMean = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysMean").orElse("3600");
-    String timeBetweenStartsBusinessDaysSd = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysSd").orElse("7200");
+    String timeBetweenStartsBusinessDaysSd = findProperty(modelInstance, "simulateTimeBetweenStartsBusinessDaysSd").orElse("0");
     String startBusinessDayAt = findProperty(modelInstance, "simulateStartBusinessDayAt").orElse("8:00");
-    String endBusinessDayAt = findProperty(modelInstance, "simulateStartBusinessDayAt").orElse("18:00");
+    String endBusinessDayAt = findProperty(modelInstance, "simulateEndBusinessDayAt").orElse("18:00");
     String includeWeekend = findProperty(modelInstance, "simulateIncludeWeekend").orElse("false");
     boolean runAlways = findProperty(modelInstance, "simulateRunAlways").orElse("false").toLowerCase().equals("true");
 
@@ -60,7 +60,7 @@ public class DemoDataGenerator {
         .processDefinitionKey(processDefinition.getKey()) //
         .additionalModelKeys(additionalModelKeys) //
         .numberOfDaysInPast(Integer.valueOf(numberOfDaysInPast)) //
-        .timeBetweenStartsBusinessDays(Integer.valueOf(timeBetweenStartsBusinessDaysMean), Integer.valueOf(timeBetweenStartsBusinessDaysSd))
+        .timeBetweenStartsBusinessDays(timeBetweenStartsBusinessDaysMean, timeBetweenStartsBusinessDaysSd) //
         .startTimeBusinessDay(startBusinessDayAt) //
         .endTimeBusinessDay(endBusinessDayAt) //
         .includeWeekend(includeWeekend.toLowerCase().equals("true")) //
@@ -75,7 +75,7 @@ public class DemoDataGenerator {
       Collection<CamundaProperty> propertyCollection = properties.getCamundaProperties();
       for (CamundaProperty camundaProperty : propertyCollection) {
         if (propertyName.equals(camundaProperty.getCamundaName())) {
-          return Optional.of(camundaProperty.getCamundaValue());
+          return Optional.ofNullable(camundaProperty.getCamundaValue());
         }
       }
     }

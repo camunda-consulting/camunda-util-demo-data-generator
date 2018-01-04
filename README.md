@@ -15,8 +15,8 @@ Table of Contents
    * [Demo Data Generator](#demo-data-generator)
    * [How To](#how-to)
       * [Instrument your BPMN process](#instrument-your-bpmn-process)
-         * [Add Probabilities to all outgoing Sequence Flows on XOR-Gateways:](#add-probabilities-to-all-outgoing-sequence-flows-on-xor-gateways)
-         * [Add Distribution for Duration of Wait States (Tasks, Events):](#add-distribution-for-duration-of-wait-states-tasks-events)
+         * [Add Probabilities to all outgoing Sequence Flows on XOR-Gateways](#add-probabilities-to-all-outgoing-sequence-flows-on-xor-gateways)
+         * [Add Distribution for Duration of Wait States (Tasks, Events)](#add-distribution-for-duration-of-wait-states-tasks-events)
       * [Start the Generation](#start-the-generation)
          * [Start via Webapplication](#start-via-webapplication)
          * [Start in Your Own Application](#start-in-your-own-application)
@@ -32,8 +32,6 @@ Table of Contents
 # How To
 
 ## Instrument your BPMN process
-
-*Hint:* All times are expressed in *seconds*.
 
 To make this really easy there are [Element Templates](https://docs.camunda.org/manual/latest/modeler/camunda-modeler/element-templates/) provided to maintain the attributes easily in the Camunda Modeler. See:
 
@@ -55,7 +53,10 @@ Set the extension attributes: `durationMean` and `durationSd`
 
 ![Distribution for Task Duration](taskDuration.png)
 
-for User Tasks, Receive Tasks,  External Tasks, Intermediate Message Events, Boundary Message Events
+for User Tasks, Receive Tasks,  External Tasks, Intermediate Message Events, Boundary Message Events. The values can be expressed as ISO8601 durations (for example 'P1DT2H10M') or as total number of seconds (for example '94200').
+
+If you provide `durationMean` and `durationStd`, then a normal distribution for values with expected value `durationMean` and standard deviation `durationStd` is used for generating actual duration value. If you omit `durationStd`, then `durationMean` is used as constant value.
+
 
 ## Start the Generation
 
@@ -117,6 +118,7 @@ Instrument your process definition XML for all processes where auto generation s
       </extensionElements>
 ```
 For `simulateStartBusinessDayAt` and `simulateEndBusinessDayAt` you have to use format `hh:mm` and for `simulateIncludeWeekend` and `simulateRunAlways` every value other than `true` is interpreted as false.
+`simulateTimeBetweenStartsBusinessDaysMean` and `simulateTimeBetweenStartsBusinessDaysSd` are used like `durationMean` and `durationStd` (see [Add Distribution for Duration of Wait States](#add-distribution-for-duration-of-wait-states-tasks-events)).
 
 And add a @PostDeploy hook into your ProcessApplication class:
 ```

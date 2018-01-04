@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -447,6 +448,7 @@ public class DemoModelInstrumentator {
         .flatMap(Collection::stream) //
         .filter(property -> property.getCamundaName().equals(propertyName)) //
         .map(CamundaProperty::getCamundaValue) //
+        .filter(Objects::nonNull) //
         .findFirst();
   }
 

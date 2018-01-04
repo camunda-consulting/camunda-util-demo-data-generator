@@ -1,17 +1,20 @@
 package com.camunda.demo.environment.simulation;
 
+import org.apache.commons.math3.distribution.ConstantRealDistribution;
 import org.apache.commons.math3.distribution.NormalDistribution;
+import org.apache.commons.math3.distribution.RealDistribution;
 
 public class StatisticalDistribution {
-//  private String type = "erlang";
-//  private double mean=94.3247;
-//  private double standardDeviation=52.8106;
-  private NormalDistribution distribution;
-  
-  public StatisticalDistribution(double mean, double standardDeviation)  {
-    distribution = new NormalDistribution(mean, standardDeviation);    
+  private RealDistribution distribution;
+
+  public StatisticalDistribution(double mean, double standardDeviation) {
+    if (standardDeviation != 0) {
+      distribution = new NormalDistribution(mean, standardDeviation);
+    } else {
+      distribution = new ConstantRealDistribution(mean);
+    }
   }
-  
+
   public double nextSample() {
     return distribution.sample();
   }

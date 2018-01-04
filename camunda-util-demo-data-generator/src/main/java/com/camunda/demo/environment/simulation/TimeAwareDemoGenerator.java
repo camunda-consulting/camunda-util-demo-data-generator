@@ -13,6 +13,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeConstants;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.Duration;
+
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -33,10 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import com.camunda.demo.environment.DemoDataGenerator;
 
-/**
- * Classloading: Currently everything is done as JavaScript - so no classes are
- * necessary
- */
 public class TimeAwareDemoGenerator {
 
   public static final int METRIC_INTERVAL_MINUTES = 15;
@@ -57,7 +58,7 @@ public class TimeAwareDemoGenerator {
 
   private ProcessEngine engine;
 
-  private Map<String, NormalDistribution> distributions = new HashMap<String, NormalDistribution>();
+  private Map<String, StatisticalDistribution> distributions = new HashMap<String, StatisticalDistribution>();
 
   private Map<Object, Date> dueCache = new HashMap<>();
 
@@ -68,10 +69,15 @@ public class TimeAwareDemoGenerator {
 
   private String deploymentId;
 
+  // for time period parsing
+  private DatatypeFactory datatypeFactory;
+
+  public TimeAwareDemoGenerator(ProcessEngine processEngine) {
+    this(processEngine, null, null);
+  }
+
   public TimeAwareDemoGenerator(ProcessEngine engine, ProcessApplicationReference processApplicationReference) {
-    this.engine = engine;
-    this.originalProcessApplication = processApplicationReference;
-    this.simulatingProcessApplication = processApplicationReference;
+    this(engine, processApplicationReference, processApplicationReference);
   }
 
   public TimeAwareDemoGenerator(ProcessEngine engine, ProcessApplicationReference originalProcessApplicationReference,
@@ -79,10 +85,11 @@ public class TimeAwareDemoGenerator {
     this.engine = engine;
     this.originalProcessApplication = originalProcessApplicationReference;
     this.simulatingProcessApplication = simulatingProcessApplicationReference;
-  }
-
-  public TimeAwareDemoGenerator(ProcessEngine processEngine) {
-    this.engine = processEngine;
+    try {
+      datatypeFactory = DatatypeFactory.newInstance();
+    } catch (DatatypeConfigurationException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public void generateData() {
@@ -141,6 +148,8 @@ public class TimeAwareDemoGenerator {
     lastTimeToStart.add(Calendar.DAY_OF_YEAR, -1 * numberOfDaysToSkip);
     lastTimeToStart.set(Calendar.HOUR_OF_DAY, 0);
     lastTimeToStart.set(Calendar.MINUTE, 0);
+    lastTimeToStart.set(Calendar.SECOND, 0);
+    lastTimeToStart.set(Calendar.MILLISECOND, 0);
 
     Set<String> runningProcessInstanceIds = new TreeSet<>();
     Set<String> processInstancIdsAlreadyReachedCurrentTime = new HashSet<>();
@@ -179,6 +188,8 @@ public class TimeAwareDemoGenerator {
       nextStartTime.add(Calendar.DAY_OF_YEAR, -1 * numberOfDaysInPast);
       nextStartTime.set(Calendar.HOUR_OF_DAY, 0);
       nextStartTime.set(Calendar.MINUTE, 0);
+      nextStartTime.set(Calendar.SECOND, 0);
+      nextStartTime.set(Calendar.MILLISECOND, 0);
     } else {
       nextStartTime.setTime(previousStartTime);
     }
@@ -186,15 +197,19 @@ public class TimeAwareDemoGenerator {
     while (!nextStartTime.getTime().after(latestStartTime)) {
       // business day (OK - simplified - do not take holidays into
       // account)
+      if (includeWeekend || (nextStartTime.get(Calendar.DAY_OF_WEEK) != Calendar.SATURDAY && nextStartTime.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY)) {
+        // business hours
+        if (isInTimeFrame(nextStartTime, startTimeBusinessDay, endTimeBusinessDay)) {
+          // really new sample?
+          if (previousStartTime == null || nextStartTime.getTime().after(previousStartTime)) {
+            return nextStartTime.getTime();
+          }
+        }
+      }
+
+      // current candidate not valid, increase
       double time = timeBetweenStartsBusinessDays.nextSample();
       nextStartTime.add(Calendar.SECOND, (int) Math.round(time));
-      if ((!includeWeekend) && (nextStartTime.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY || nextStartTime.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY)) {
-        continue;
-      }
-      if (!isInTimeFrame(nextStartTime, startTimeBusinessDay, endTimeBusinessDay)) {
-        continue;
-      }
-      return nextStartTime.getTime();
     }
 
     // we ran behind latestStartTime
@@ -218,7 +233,7 @@ public class TimeAwareDemoGenerator {
       endCal.setTime(cachedDayEndTime);
       copyTimeField(cal, endCal, Calendar.YEAR, Calendar.DAY_OF_YEAR);
 
-      return (startCal.before(cal) && cal.before(endCal));
+      return (!cal.before(startCal) && cal.before(endCal));
     } catch (ParseException ex) {
       throw new RuntimeException("Could not parse time format: '" + startTime + "' or '" + endTime + "'", ex);
     }
@@ -350,13 +365,13 @@ public class TimeAwareDemoGenerator {
 
     protected Date calculateNewRandomDue(ProcessInstance pi, String id, Date creationTime) {
       if (!distributions.containsKey(id)) {
-        NormalDistribution distribution = createDistributionForElement(pi, id);
+        StatisticalDistribution distribution = createDistributionForElement(pi, id);
         distributions.put(id, distribution);
       }
 
       Calendar cal = Calendar.getInstance();
       cal.setTime(creationTime);
-      double timeToWait = distributions.get(id).sample();
+      double timeToWait = distributions.get(id).nextSample();
       if (timeToWait <= 0) {
         timeToWait = 1;
       }
@@ -500,23 +515,54 @@ public class TimeAwareDemoGenerator {
 
   }
 
-  protected NormalDistribution createDistributionForElement(ProcessInstance pi, String id) {
+  protected StatisticalDistribution createDistributionForElement(ProcessInstance pi, String id) {
     try {
       BaseElement taskElement = engine.getRepositoryService().getBpmnModelInstance(pi.getProcessDefinitionId()).getModelElementById(id);
 
       // Default = 10 minutes each
-      double durationMean = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationMean").map(Double::valueOf).orElse(600.0);
-      double durationStandardDeviation = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationSd").map(Double::valueOf).orElse(600.0);
+      double durationMean = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationMean").flatMap(this::parseTime).orElse(600.0);
+      double durationStandardDeviation = DemoModelInstrumentator.readCamundaProperty(taskElement, "durationSd").flatMap(this::parseTime).orElse(0.0);
 
-      NormalDistribution distribution = new NormalDistribution(durationMean, durationStandardDeviation);
+      StatisticalDistribution distribution = new StatisticalDistribution(durationMean, durationStandardDeviation);
       return distribution;
     } catch (Exception ex) {
       throw new RuntimeException("Could not read distribution for element '" + id + "' of process definition '" + pi.getProcessDefinitionId() + "'", ex);
     }
   }
 
+  private Optional<Double> parseTime(String time) {
+    if (time.startsWith("P")) {
+      try {
+        Duration duration = datatypeFactory.newDuration(time);
+        // okay, months with fixed 30 days is somewhat whacky - who cares
+        Double seconds = ((((duration.getYears() * 12 //
+            + duration.getMonths()) * 30 //
+            + duration.getDays()) * 24 //
+            + duration.getHours()) * 60 //
+            + duration.getMinutes()) * 60 //
+            + Optional.ofNullable(duration.getField(DatatypeConstants.SECONDS)).map(Number::doubleValue).orElse(0.0);
+        return Optional.of(Double.valueOf(seconds));
+      } catch (Exception e) {
+        LOG.error("Cannot parse time: {}", time);
+        return Optional.empty();
+      }
+    } else {
+      try {
+        return Optional.of(Double.valueOf(time));
+      } catch (NumberFormatException e) {
+        LOG.error("Cannot parse time: {}", time);
+        return Optional.empty();
+      }
+    }
+  }
+
   public TimeAwareDemoGenerator timeBetweenStartsBusinessDays(double mean, double standardDeviation) {
     timeBetweenStartsBusinessDays = new StatisticalDistribution(mean, standardDeviation);
+    return this;
+  }
+  
+  public TimeAwareDemoGenerator timeBetweenStartsBusinessDays(String mean, String standardDeviation) {
+    timeBetweenStartsBusinessDays = new StatisticalDistribution(parseTime(mean).get(), parseTime(standardDeviation).get());
     return this;
   }
 
