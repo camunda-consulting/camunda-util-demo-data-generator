@@ -6,7 +6,7 @@ Given a single process definition key, it will work without modifying your model
 
 Hence, check the *process definition version n-1* for your generated process instances!
 
-In order to use the generator you have to [instrument your BPMN for tuning simulation behaviour](#instrument-your-bpmn-process) and start the Demo Data Generator via [webapplication](#start-via-webapplication) or [your own application](#start-in-your-own-application).
+In order to use the generator you might want to [instrument your BPMN for tuning simulation behaviour](#instrument-your-bpmn-process) and start the Demo Data Generator via [webapplication](#start-via-webapplication) or [your own application](#start-in-your-own-application).
 
 To learn what models that simulator can handle and what it does with the elements, see [Supported BPMN elements](#supported-bpmn-elements)
 
@@ -44,6 +44,8 @@ To make this really easy there are [Element Templates](https://docs.camunda.org/
 
 Extension Attribute: `probability`
 
+If you put the extension `simulateKeepImplementation=true` to the corresponding XOR-gateway, the original condition of the sequence flows will be used in simulation. Use with caution.
+
 ![Probability on Sequence Flow](decisionProbability.png)
 
 
@@ -56,6 +58,10 @@ Set the extension attributes: `durationMean` and `durationSd`
 for User Tasks, Receive Tasks,  External Tasks, Intermediate Message Events, Boundary Message Events. The values can be expressed as ISO8601 durations (for example 'P1DT2H10M') or as total number of seconds (for example '94200').
 
 If you provide `durationMean` and `durationStd`, then a normal distribution for values with expected value `durationMean` and standard deviation `durationStd` is used for generating actual duration value. If you omit `durationStd`, then `durationMean` is used as constant value.
+
+### Add Hints to Service Tasks, Script Tasks, Business Rule Tasks, Send Tasks
+
+If you put the extension `simulateKeepImplementation=true` to the corresponding activity, the original implementation (Expression, Delegate code, ...) including scripts in execution/task listeners and input/output parameters/mappings will be used in simulation. Use with caution.
 
 
 ## Start the Generation

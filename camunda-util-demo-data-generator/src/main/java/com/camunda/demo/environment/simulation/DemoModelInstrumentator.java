@@ -1,8 +1,6 @@
 package com.camunda.demo.environment.simulation;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,8 +13,6 @@ import java.util.Set;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.impl.ProcessEngineImpl;
-import org.camunda.bpm.engine.repository.CaseDefinition;
-import org.camunda.bpm.engine.repository.DecisionDefinition;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
@@ -27,10 +23,7 @@ import org.camunda.bpm.model.bpmn.instance.BusinessRuleTask;
 import org.camunda.bpm.model.bpmn.instance.ConditionExpression;
 import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
 import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
-import org.camunda.bpm.model.bpmn.instance.InclusiveGateway;
 import org.camunda.bpm.model.bpmn.instance.Process;
-import org.camunda.bpm.model.bpmn.instance.ReceiveTask;
-import org.camunda.bpm.model.bpmn.instance.ScriptTask;
 import org.camunda.bpm.model.bpmn.instance.SendTask;
 import org.camunda.bpm.model.bpmn.instance.SequenceFlow;
 import org.camunda.bpm.model.bpmn.instance.ServiceTask;
@@ -39,14 +32,6 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaExecutionListener;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaScript;
-import org.camunda.bpm.model.bpmn.instance.camunda.CamundaTaskListener;
-import org.camunda.bpm.model.cmmn.Cmmn;
-import org.camunda.bpm.model.cmmn.CmmnModelInstance;
-import org.camunda.bpm.model.cmmn.instance.CasePlanModel;
-import org.camunda.bpm.model.cmmn.instance.DecisionTask;
-import org.camunda.bpm.model.cmmn.instance.HumanTask;
-import org.camunda.bpm.model.cmmn.instance.Sentry;
-import org.camunda.bpm.model.cmmn.instance.camunda.CamundaCaseExecutionListener;
 import org.camunda.bpm.model.xml.ModelInstance;
 import org.camunda.bpm.model.xml.impl.util.IoUtil;
 import org.camunda.bpm.model.xml.instance.ModelElementInstance;
@@ -65,7 +50,8 @@ public class DemoModelInstrumentator {
   private Map<String, String> tweakedModels = new HashMap<String, String>();
   private Set<String> tweakedProcessKeys = new HashSet<>();
 
-  public DemoModelInstrumentator(ProcessEngine engine, ProcessApplicationReference originalProcessApplication, ProcessApplicationReference simulatingProcessApplication) {
+  public DemoModelInstrumentator(ProcessEngine engine, ProcessApplicationReference originalProcessApplication,
+      ProcessApplicationReference simulatingProcessApplication) {
     this.engine = (ProcessEngineImpl) engine;
     this.originalProcessApplication = originalProcessApplication;
     this.simulatingProcessApplication = simulatingProcessApplication;
@@ -77,18 +63,7 @@ public class DemoModelInstrumentator {
       if (pd != null) {
         addBpmn(key);
       } else {
-        CaseDefinition cd = engine.getRepositoryService().createCaseDefinitionQuery().caseDefinitionKey(key).latestVersion().singleResult();
-        if (cd != null) {
-          addCmmn(key);
-        } else {
-          // DecisionDefinition dd =
-          // engine.getRepositoryService().createDecisionDefinitionQuery().decisionDefinitionKey(key).latestVersion().singleResult();
-          // if (dd != null) {
-          // addDmn(key);
-          // } else {
-          // ignore for now
-          // }
-        }
+        LOG.warn("Model key '{}' is not a BPMN model - ignoring", key);
       }
     }
 
@@ -97,14 +72,6 @@ public class DemoModelInstrumentator {
   public void addBpmn(String processDefinitionKey) {
     tweakProcessDefinition(processDefinitionKey);
   }
-
-  public void addCmmn(String caseDefinitionKey) {
-    tweakCaseDefinition(caseDefinitionKey);
-  }
-
-  // public void addDmn(String decisionDefinitionKey) {
-  // tweakDecisionDefinition(decisionDefinitionKey);
-  // }
 
   public String deployTweakedModels() {
     LOG.info("Starting deployment of tweaked models for demo data generation");
@@ -194,6 +161,9 @@ public class DemoModelInstrumentator {
 
     for (ModelElementInstance modelElementInstance : serviceTasks) {
       ServiceTask serviceTask = ((ServiceTask) modelElementInstance);
+      if (checkKeepLogic(serviceTask)) {
+        continue;
+      }
       serviceTask.setCamundaClass(null);
       // TODO: Wait for https://app.camunda.com/jira/browse/CAM-4178 and set
       // to null!
@@ -206,6 +176,9 @@ public class DemoModelInstrumentator {
     }
     for (ModelElementInstance modelElementInstance : sendTasks) {
       SendTask serviceTask = ((SendTask) modelElementInstance);
+      if (checkKeepLogic(serviceTask)) {
+        continue;
+      }
       serviceTask.setCamundaClass(null);
       serviceTask.removeAttributeNs("http://activiti.org/bpmn", "delegateExpression");
       serviceTask.removeAttributeNs("http://camunda.org/schema/1.0/bpmn", "delegateExpression");
@@ -213,6 +186,9 @@ public class DemoModelInstrumentator {
     }
     for (ModelElementInstance modelElementInstance : businessRuleTasks) {
       BusinessRuleTask businessRuleTask = (BusinessRuleTask) modelElementInstance;
+      if (checkKeepLogic(businessRuleTask)) {
+        continue;
+      }
       businessRuleTask.removeAttributeNs("http://activiti.org/bpmn", "decisionRef"); // DMN
                                                                                      // ref
                                                                                      // from
@@ -231,6 +207,12 @@ public class DemoModelInstrumentator {
     }
     for (ModelElementInstance modelElementInstance : executionListeners) {
       CamundaExecutionListener executionListener = (CamundaExecutionListener) modelElementInstance;
+      // according to
+      // https://docs.camunda.org/manual/7.8/reference/bpmn20/custom-extensions/extension-elements/#executionlistener
+      // all possible parents are baseElements, but the direct parent is 'extensionElements'
+      if (checkKeepLogic((BaseElement) executionListener.getParentElement().getParentElement())) {
+        continue;
+      }
       // executionListener.setCamundaClass(null);
       executionListener.removeAttributeNs("http://activiti.org/bpmn", "class");
       executionListener.removeAttributeNs("http://camunda.org/schema/1.0/bpmn", "class");
@@ -240,6 +222,17 @@ public class DemoModelInstrumentator {
       executionListener.setCamundaExpression("#{true}"); // Noop
     }
     for (ModelElementInstance modelElementInstance : scripts) {
+      // find parent base element
+      ModelElementInstance parent = modelElementInstance;
+      do {
+        parent = parent.getParentElement();
+      } while (parent != null && !(parent instanceof BaseElement));
+
+      // keep logic only if we found some BaseElement as parent
+      if (parent != null && checkKeepLogic((BaseElement) parent)) {
+        continue;
+      }
+
       CamundaScript script = (CamundaScript) modelElementInstance;
       // executionListener.setCamundaClass(null);
       script.setTextContent(""); // java.lang.System.out.println('x');
@@ -256,6 +249,9 @@ public class DemoModelInstrumentator {
 
     for (ModelElementInstance modelElementInstance : xorGateways) {
       ExclusiveGateway xorGateway = ((ExclusiveGateway) modelElementInstance);
+      if (checkKeepLogic(xorGateway)) {
+        continue;
+      }
       tweakGateway(xorGateway);
     }
 
@@ -266,6 +262,10 @@ public class DemoModelInstrumentator {
 
     // store all contained process keys for not tweaking them twice
     bpmn.getModelElementsByType(bpmn.getModel().getType(Process.class)).forEach(instance -> tweakedProcessKeys.add((((Process) instance).getId())));
+  }
+
+  protected boolean checkKeepLogic(BaseElement bpmnBaseElement) {
+    return readCamundaProperty(bpmnBaseElement, "simulateKeepImplementation").orElse("false").toLowerCase().equals("true");
   }
 
   protected void tweakGateway(ExclusiveGateway xorGateway) {
@@ -305,137 +305,6 @@ public class DemoModelInstrumentator {
         xorGateway.addChildElement(extensionElements);
       }
       xorGateway.getExtensionElements().addChildElement(executionListener);
-    }
-  }
-
-  public String tweakCaseDefinition(String caseDefinitionKey) {
-    LOG.info("tweak case definition " + caseDefinitionKey);
-
-    CaseDefinition caseDefinition = engine.getRepositoryService().createCaseDefinitionQuery() //
-        .caseDefinitionKey(caseDefinitionKey) //
-        .latestVersion() //
-        .singleResult();
-    if (caseDefinition == null) {
-      throw new RuntimeException("Case with key '" + caseDefinitionKey + "' not found.");
-    }
-    // store original process application reference
-    if (originalProcessApplication == null) {
-      originalProcessApplication = engine.getProcessEngineConfiguration().getProcessApplicationManager()
-          .getProcessApplicationForDeployment(caseDefinition.getDeploymentId());
-    }
-
-    CmmnModelInstance cmmn = engine.getRepositoryService().getCmmnModelInstance(caseDefinition.getId());
-
-    String originalCmmn = IoUtil.convertXmlDocumentToString(cmmn.getDocument());
-    // do not do a validation here as it caused quite strange trouble
-    LOG.debug("-----\n" + originalCmmn + "\n------");
-    originalModels.put(caseDefinitionKey + ".cmmn", originalCmmn);
-
-    CasePlanModel casePlanModel = (CasePlanModel) cmmn.getModelElementsByType(cmmn.getModel().getType(CasePlanModel.class)).iterator().next();
-
-    Collection<ModelElementInstance> sentries = cmmn.getModelElementsByType(cmmn.getModel().getType(Sentry.class));
-    Collection<ModelElementInstance> businessRuleTasks = cmmn.getModelElementsByType(cmmn.getModel().getType(DecisionTask.class));
-    Collection<ModelElementInstance> userTasks = cmmn.getModelElementsByType(cmmn.getModel().getType(HumanTask.class));
-
-    for (ModelElementInstance modelElementInstance : sentries) {
-      Sentry sentry = ((Sentry) modelElementInstance);
-      if (sentry.getIfPart() != null && sentry.getIfPart().getCondition() != null) {
-        tweakSentry(casePlanModel, sentry);
-      }
-    }
-    // for (ModelElementInstance modelElementInstance : businessRuleTasks) {
-    // DecisionTask businessRuleTask = (DecisionTask) modelElementInstance;
-    // businessRuleTask.removeAttributeNs("http://activiti.org/bpmn",
-    // "decisionRef");
-    // businessRuleTask.removeAttributeNs("http://camunda.org/schema/1.0/bpmn",
-    // "decisionRef");
-    // businessRuleTask.removeAttributeNs("http://activiti.org/bpmn",
-    // "delegateExpression");
-    // businessRuleTask.removeAttributeNs("http://camunda.org/schema/1.0/bpmn",
-    // "delegateExpression");
-    // businessRuleTask.setDecisionExpression("#{true}"); // Noop
-    // }
-    // for (ModelElementInstance modelElementInstance : executionListeners) {
-    // CamundaExecutionListener executionListener = (CamundaExecutionListener)
-    // modelElementInstance;
-    // // executionListener.setCamundaClass(null);
-    // executionListener.removeAttributeNs("http://activiti.org/bpmn", "class");
-    // executionListener.removeAttributeNs("http://camunda.org/schema/1.0/bpmn",
-    // "class");
-    //
-    // executionListener.removeAttributeNs("http://activiti.org/bpmn",
-    // "delegateExpression");
-    // executionListener.removeAttributeNs("http://camunda.org/schema/1.0/bpmn",
-    // "delegateExpression");
-    // executionListener.setCamundaExpression("#{true}"); // Noop
-    // }
-
-    for (ModelElementInstance modelElementInstance : userTasks) {
-      HumanTask userTask = ((HumanTask) modelElementInstance);
-      userTask.setCamundaAssignee(null);
-      userTask.setCamundaCandidateGroups(null);
-    }
-
-    // Bpmn.validateModel(bpmn);
-    String xmlString = Cmmn.convertToString(cmmn);
-    tweakedModels.put(caseDefinitionKey + ".cmmn", xmlString);
-    return xmlString;
-  }
-
-  protected void tweakSentry(CasePlanModel casePlanModel, Sentry sentry) {
-    CmmnModelInstance cmmn = (CmmnModelInstance) sentry.getModelInstance();
-
-    String var = "SIM_SAMPLE_VALUE_" + sentry.getId().replaceAll("-", "_");
-
-    // let's toggle with a 50/50 for the beginning
-
-    org.camunda.bpm.model.cmmn.instance.ConditionExpression conditionExpression = cmmn
-        .newInstance(org.camunda.bpm.model.cmmn.instance.ConditionExpression.class);
-    conditionExpression.setTextContent("#{" + var + " >= 1 }");
-    sentry.getIfPart().setCondition(conditionExpression);
-
-    // add execution listener to set variable based on random
-    CamundaCaseExecutionListener executionListener = cmmn.newInstance(CamundaCaseExecutionListener.class);
-    executionListener.setCamundaEvent("create");
-    org.camunda.bpm.model.cmmn.instance.camunda.CamundaScript script = cmmn.newInstance(org.camunda.bpm.model.cmmn.instance.camunda.CamundaScript.class);
-    script.setTextContent(//
-        "sample = com.camunda.demo.environment.simulation.StatisticsHelper.nextSample(" + 2 + ");\n" + "caseExecution.setVariable('" + var + "', sample);");
-    script.setCamundaScriptFormat("Javascript");
-    executionListener.setCamundaScript(script);
-
-    // CmmnElementImpl parentElement = (CmmnElementImpl)
-    // sentry.getParentElement();
-
-    if (casePlanModel.getExtensionElements() == null) {
-      ExtensionElements extensionElements = cmmn.newInstance(ExtensionElements.class);
-      casePlanModel.addChildElement(extensionElements);
-    }
-    casePlanModel.getExtensionElements().addChildElement(executionListener);
-
-  }
-
-  public String tweakDecisionDefinition(String decisionDefinitionKey) {
-    LOG.info("tweak decision definition " + decisionDefinitionKey);
-
-    DecisionDefinition decisionDefinition = engine.getRepositoryService().createDecisionDefinitionQuery() //
-        .decisionDefinitionKey(decisionDefinitionKey) //
-        .latestVersion() //
-        .singleResult();
-    if (decisionDefinition == null) {
-      throw new RuntimeException("Decision with key '" + decisionDefinitionKey + "' not found.");
-    }
-
-    InputStream decisionModel = engine.getRepositoryService().getDecisionModel(decisionDefinition.getId());
-
-    try {
-      String originalDmn = IoUtil.getStringFromInputStream(decisionModel);
-      // do not do a validation here as it caused quite strange trouble
-      LOG.debug("-----\n" + originalDmn + "\n------");
-      originalModels.put(decisionDefinitionKey + ".dmn", originalDmn);
-
-      return originalDmn;
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot read decision definition: " + e.getMessage(), e);
     }
   }
 

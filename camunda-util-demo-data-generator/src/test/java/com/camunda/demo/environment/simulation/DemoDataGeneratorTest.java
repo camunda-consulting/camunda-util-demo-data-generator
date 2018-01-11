@@ -76,6 +76,36 @@ public class DemoDataGeneratorTest {
   }
 
   @Test
+  @Deployment(resources = "keepImplementation.bpmn")
+  public void testKeepImplementation() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("keepImplementation") //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:59") //
+        .includeWeekend(true) //
+        .timeBetweenStartsBusinessDays(864.0, 0.0);
+    generator.generateData();
+
+    long runned = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished().processDefinitionKey("keepImplementation").count();
+    long never = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("keepImplementation")).activityId("EndEvent_Never").count();
+    double fifty1 = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("keepImplementation")).activityId("EndEvent_Fifty1").count();
+    double fifty2 = processEngine().getHistoryService().createHistoricActivityInstanceQuery()
+        .processDefinitionId(getProcessDefinitionIdByKey("keepImplementation")).activityId("EndEvent_Fifty2").count();
+
+    assertEquals(101, runned);
+    assertEquals(0, never);
+    assert (fifty1 / fifty2 > 0.4);
+    assert (fifty2 / fifty1 > 0.4);
+    assertEquals(0, new TestDelegate1().count());
+    assertEquals(0, TestBalloon.getCounter("no"));
+    assertEquals(3 * runned, new TestDelegate2().count());
+    assertEquals(3 * runned, TestBalloon.getCounter("yes"));
+  }
+
+  @Test
   @Deployment(resources = "isoTimeAndConstantDistribution.bpmn")
   public void testIsoTimeAndConstantDistribution() {
     TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //

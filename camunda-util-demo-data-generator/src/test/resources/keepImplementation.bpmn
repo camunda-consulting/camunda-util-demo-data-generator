@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="_GVNrEB_kEeWq-YqF5Wczwg" targetNamespace="http://camunda.org/schema/1.0/bpmn" exporter="Camunda Modeler" exporterVersion="1.11.3" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="keepImplementation" name="keepImplementation" isExecutable="true">
+    <bpmn2:extensionElements>
+      <camunda:properties>
+        <camunda:property name="simulateNumberOfDaysInPast" value="1" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="6000" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="100" />
+        <camunda:property name="simulateRunAlways" value="false" />
+        <camunda:property name="simulateIncludeWeekend" value="true" />
+      </camunda:properties>
+    </bpmn2:extensionElements>
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>SequenceFlow_0lgfp9e</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:endEvent id="EndEvent_Fifty1" name="Fifty1">
+      <bpmn2:incoming>SequenceFlow_1t0q4a0</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0lgfp9e" sourceRef="StartEvent_1" targetRef="Task_06o8ek0" />
+    <bpmn2:sequenceFlow id="SequenceFlow_0fong08" sourceRef="Task_06o8ek0" targetRef="ServiceTask_0dxuetd" />
+    <bpmn2:serviceTask id="Task_06o8ek0" name="strip logic" camunda:class="com.camunda.demo.environment.simulation.TestDelegate1">
+      <bpmn2:extensionElements>
+        <camunda:executionListener class="com.camunda.demo.environment.simulation.TestDelegate1" event="start" />
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="JavaScript"><![CDATA[var TestBalloon = Java.type('com.camunda.demo.environment.simulation.TestBalloon');
+TestBalloon.callCounter('no');]]></camunda:script>
+        </camunda:executionListener>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="Input_0djm8cq">
+            <camunda:script scriptFormat="JavaScript"><![CDATA[var TestBalloon = Java.type('com.camunda.demo.environment.simulation.TestBalloon');
+TestBalloon.callCounter('no');]]></camunda:script>
+          </camunda:inputParameter>
+        </camunda:inputOutput>
+        <camunda:properties>
+          <camunda:property name="simulateKeepImplementation" value="false" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0lgfp9e</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_0fong08</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:serviceTask id="ServiceTask_0dxuetd" name="keep logic" camunda:class="com.camunda.demo.environment.simulation.TestDelegate2">
+      <bpmn2:extensionElements>
+        <camunda:executionListener class="com.camunda.demo.environment.simulation.TestDelegate2" event="start" />
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="JavaScript"><![CDATA[var TestBalloon = Java.type('com.camunda.demo.environment.simulation.TestBalloon');
+TestBalloon.callCounter('yes');]]></camunda:script>
+        </camunda:executionListener>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="Input_0djm8cq">
+            <camunda:script scriptFormat="JavaScript"><![CDATA[var TestBalloon = Java.type('com.camunda.demo.environment.simulation.TestBalloon');
+TestBalloon.callCounter('yes');]]></camunda:script>
+          </camunda:inputParameter>
+        </camunda:inputOutput>
+        <camunda:properties>
+          <camunda:property name="simulateKeepImplementation" value="true" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0fong08</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_0ffj5dv</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:sequenceFlow id="SequenceFlow_0ffj5dv" sourceRef="ServiceTask_0dxuetd" targetRef="ExclusiveGateway_03retsj" />
+    <bpmn2:exclusiveGateway id="ExclusiveGateway_03retsj" name="keep">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="simulateKeepImplementation" value="true" />
+        </camunda:properties>
+        <camunda:executionListener class="com.camunda.demo.environment.simulation.TestDelegate2" event="start" />
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="JavaScript"><![CDATA[var TestBalloon = Java.type('com.camunda.demo.environment.simulation.TestBalloon');
+TestBalloon.callCounter('yes');]]></camunda:script>
+        </camunda:executionListener>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0ffj5dv</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_06odetm</bpmn2:outgoing>
+      <bpmn2:outgoing>SequenceFlow_0bxvn8a</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:sequenceFlow id="SequenceFlow_06odetm" name="${true}" sourceRef="ExclusiveGateway_03retsj" targetRef="ExclusiveGateway_0je3ajq">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression">${true}</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:endEvent id="EndEvent_Never" name="Never">
+      <bpmn2:incoming>SequenceFlow_0bxvn8a</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0bxvn8a" name="${false}" sourceRef="ExclusiveGateway_03retsj" targetRef="EndEvent_Never">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression">${false}</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:exclusiveGateway id="ExclusiveGateway_0je3ajq" name="strip">
+      <bpmn2:extensionElements>
+        <camunda:executionListener class="com.camunda.demo.environment.simulation.TestDelegate1" event="start" />
+        <camunda:executionListener event="end">
+          <camunda:script scriptFormat="JavaScript"><![CDATA[var TestBalloon = Java.type('com.camunda.demo.environment.simulation.TestBalloon');
+TestBalloon.callCounter('no');]]></camunda:script>
+        </camunda:executionListener>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_06odetm</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_1t0q4a0</bpmn2:outgoing>
+      <bpmn2:outgoing>SequenceFlow_0dt6qfv</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:sequenceFlow id="SequenceFlow_1t0q4a0" name="50" sourceRef="ExclusiveGateway_0je3ajq" targetRef="EndEvent_Fifty1">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="probability" value="50" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression">${false}</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:endEvent id="EndEvent_Fifty2" name="Fifty2">
+      <bpmn2:incoming>SequenceFlow_0dt6qfv</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0dt6qfv" name="50" sourceRef="ExclusiveGateway_0je3ajq" targetRef="EndEvent_Fifty2">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="probability" value="50" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression">${true}</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+  </bpmn2:process>
+  <bpmn2:message id="Message_1" name="SOME_MESSAGE" />
+  <bpmn2:message id="Message_2" name="ANOTHER_MESSAGE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="keepImplementation">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_8" bpmnElement="StartEvent_1">
+        <dc:Bounds x="12" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="30" y="200" width="0" height="0" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_04ucxlk_di" bpmnElement="EndEvent_Fifty1">
+        <dc:Bounds x="674" y="94" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="679" y="133" width="27" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0lgfp9e_di" bpmnElement="SequenceFlow_0lgfp9e">
+        <di:waypoint xsi:type="dc:Point" x="48" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="86" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="22" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_0fong08_di" bpmnElement="SequenceFlow_0fong08">
+        <di:waypoint xsi:type="dc:Point" x="186" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="208" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="152" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="ServiceTask_1nmxi8k_di" bpmnElement="Task_06o8ek0">
+        <dc:Bounds x="86" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_0dxuetd_di" bpmnElement="ServiceTask_0dxuetd">
+        <dc:Bounds x="208" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0ffj5dv_di" bpmnElement="SequenceFlow_0ffj5dv">
+        <di:waypoint xsi:type="dc:Point" x="308" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="346" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="327" y="155.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="ExclusiveGateway_03retsj_di" bpmnElement="ExclusiveGateway_03retsj" isMarkerVisible="true">
+        <dc:Bounds x="346" y="152" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="359" y="205" width="24" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_06odetm_di" bpmnElement="SequenceFlow_06odetm">
+        <di:waypoint xsi:type="dc:Point" x="396" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="502" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="396.8410138248848" y="154" width="33" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="EndEvent_14gyb11_di" bpmnElement="EndEvent_Never">
+        <dc:Bounds x="453" y="47" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="456" y="86" width="30" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0bxvn8a_di" bpmnElement="SequenceFlow_0bxvn8a">
+        <di:waypoint xsi:type="dc:Point" x="371" y="152" />
+        <di:waypoint xsi:type="dc:Point" x="371" y="65" />
+        <di:waypoint xsi:type="dc:Point" x="453" y="65" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="377" y="117" width="37" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="ExclusiveGateway_0je3ajq_di" bpmnElement="ExclusiveGateway_0je3ajq" isMarkerVisible="true">
+        <dc:Bounds x="502" y="152" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="517" y="205" width="21" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_1t0q4a0_di" bpmnElement="SequenceFlow_1t0q4a0">
+        <di:waypoint xsi:type="dc:Point" x="527" y="152" />
+        <di:waypoint xsi:type="dc:Point" x="527" y="112" />
+        <di:waypoint xsi:type="dc:Point" x="674" y="112" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="536" y="126" width="13" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="EndEvent_05qb1vd_di" bpmnElement="EndEvent_Fifty2">
+        <dc:Bounds x="674" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="679" y="198" width="27" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0dt6qfv_di" bpmnElement="SequenceFlow_0dt6qfv">
+        <di:waypoint xsi:type="dc:Point" x="552" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="674" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="565" y="182" width="13" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
