@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="_GVNrEB_kEeWq-YqF5Wczwg" targetNamespace="http://camunda.org/schema/1.0/bpmn" exporter="Camunda Modeler" exporterVersion="1.11.3" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn2:process id="setVariable" name="setVariable" isExecutable="true">
+    <bpmn2:extensionElements>
+      <camunda:properties>
+        <camunda:property name="simulateNumberOfDaysInPast" value="1" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysMean" value="6000" />
+        <camunda:property name="simulateTimeBetweenStartsBusinessDaysSd" value="100" />
+        <camunda:property name="simulateRunAlways" value="false" />
+        <camunda:property name="simulateIncludeWeekend" value="true" />
+        <camunda:property name="simulateContentGenerator" value="com.camunda.demo.environment.simulation.SampleContentGenerator" />
+      </camunda:properties>
+    </bpmn2:extensionElements>
+    <bpmn2:startEvent id="StartEvent_1">
+      <bpmn2:outgoing>SequenceFlow_0lgfp9e</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:endEvent id="EndEvent_04ucxlk">
+      <bpmn2:incoming>SequenceFlow_1n4dh4i</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="SequenceFlow_0lgfp9e" sourceRef="StartEvent_1" targetRef="Task_18tx1q5" />
+    <bpmn2:sequenceFlow id="SequenceFlow_0dbjgvb" sourceRef="Task_18tx1q5" targetRef="Task_0yfelud" />
+    <bpmn2:userTask id="Task_18tx1q5" name="Test inter-variable dependency resolution">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="PT1M" />
+          <camunda:property name="durationSd" value="0" />
+          <camunda:property name="simulateSetVariable" value="first=Hello" />
+          <camunda:property name="simulateSetVariable" value="third=${second.concat(&#39; world&#39;)}" />
+          <camunda:property name="simulateSetVariable" value="second=${first.concat(&#39; lovely&#39;)}" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0lgfp9e</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_0dbjgvb</bpmn2:outgoing>
+    </bpmn2:userTask>
+    <bpmn2:sequenceFlow id="SequenceFlow_1n4dh4i" sourceRef="Task_0yfelud" targetRef="EndEvent_04ucxlk" />
+    <bpmn2:userTask id="Task_0yfelud" name="Test custom content generator">
+      <bpmn2:extensionElements>
+        <camunda:properties>
+          <camunda:property name="durationMean" value="PT1M" />
+          <camunda:property name="durationSd" value="0" />
+          <camunda:property name="simulateSetVariable" value="dto=${g:createDTO(g:format1(&#39;A%05d&#39;, g:uniqueNumber()),null,g:uniformDouble(100.0, 200.0), g:uniformLong(1500, 2000))}" />
+        </camunda:properties>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>SequenceFlow_0dbjgvb</bpmn2:incoming>
+      <bpmn2:outgoing>SequenceFlow_1n4dh4i</bpmn2:outgoing>
+    </bpmn2:userTask>
+  </bpmn2:process>
+  <bpmn2:message id="Message_1" name="SOME_MESSAGE" />
+  <bpmn2:message id="Message_2" name="ANOTHER_MESSAGE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="setVariable">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_8" bpmnElement="StartEvent_1">
+        <dc:Bounds x="12" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="30" y="200" width="0" height="0" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_04ucxlk_di" bpmnElement="EndEvent_04ucxlk">
+        <dc:Bounds x="397" y="159" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="370" y="198" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_0lgfp9e_di" bpmnElement="SequenceFlow_0lgfp9e">
+        <di:waypoint xsi:type="dc:Point" x="48" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="98" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="28" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_0dbjgvb_di" bpmnElement="SequenceFlow_0dbjgvb">
+        <di:waypoint xsi:type="dc:Point" x="198" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="221" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="164.5" y="155.5" width="90" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="UserTask_1o3wykp_di" bpmnElement="Task_18tx1q5">
+        <dc:Bounds x="98" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="SequenceFlow_1n4dh4i_di" bpmnElement="SequenceFlow_1n4dh4i">
+        <di:waypoint xsi:type="dc:Point" x="321" y="177" />
+        <di:waypoint xsi:type="dc:Point" x="397" y="177" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="359" y="155.5" width="0" height="13" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="UserTask_1seuhcp_di" bpmnElement="Task_0yfelud">
+        <dc:Bounds x="221" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

@@ -61,7 +61,7 @@ public class GenerateDemoDataServlet extends HttpServlet {
         .endTimeBusinessDay(endBusinessDayAt) //
         .includeWeekend(includeWeekend)//
         .runAlways(runAlways) //
-        .generateData();
+        .run();
 
     log.info("data generation finished");
 

@@ -48,7 +48,7 @@
   <logger name="org.camunda.bpm.container" level="debug" />
 -->
 
-  <root level="info">
+  <root level="debug">
     <appender-ref ref="STDOUT" />
   </root>
 

@@ -65,7 +65,7 @@ public class DemoDataGenerator {
         .endTimeBusinessDay(endBusinessDayAt) //
         .includeWeekend(includeWeekend.toLowerCase().equals("true")) //
         .runAlways(runAlways) //
-        .generateData();
+        .run();
 
   }
 

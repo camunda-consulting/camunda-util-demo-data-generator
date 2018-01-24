@@ -2,6 +2,7 @@ package com.camunda.demo.environment.simulation;
 
 import java.io.ByteArrayInputStream;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -9,6 +10,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -19,14 +22,28 @@ import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+import org.camunda.bpm.model.bpmn.instance.BoundaryEvent;
 import org.camunda.bpm.model.bpmn.instance.BusinessRuleTask;
+import org.camunda.bpm.model.bpmn.instance.CallActivity;
 import org.camunda.bpm.model.bpmn.instance.ConditionExpression;
+import org.camunda.bpm.model.bpmn.instance.EndEvent;
+import org.camunda.bpm.model.bpmn.instance.EventBasedGateway;
 import org.camunda.bpm.model.bpmn.instance.ExclusiveGateway;
 import org.camunda.bpm.model.bpmn.instance.ExtensionElements;
+import org.camunda.bpm.model.bpmn.instance.InclusiveGateway;
+import org.camunda.bpm.model.bpmn.instance.IntermediateCatchEvent;
+import org.camunda.bpm.model.bpmn.instance.IntermediateThrowEvent;
+import org.camunda.bpm.model.bpmn.instance.ManualTask;
+import org.camunda.bpm.model.bpmn.instance.ParallelGateway;
 import org.camunda.bpm.model.bpmn.instance.Process;
+import org.camunda.bpm.model.bpmn.instance.ReceiveTask;
+import org.camunda.bpm.model.bpmn.instance.ScriptTask;
 import org.camunda.bpm.model.bpmn.instance.SendTask;
 import org.camunda.bpm.model.bpmn.instance.SequenceFlow;
 import org.camunda.bpm.model.bpmn.instance.ServiceTask;
+import org.camunda.bpm.model.bpmn.instance.StartEvent;
+import org.camunda.bpm.model.bpmn.instance.SubProcess;
+import org.camunda.bpm.model.bpmn.instance.Task;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaExecutionListener;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
@@ -156,8 +173,16 @@ public class DemoModelInstrumentator {
     Collection<ModelElementInstance> xorGateways = bpmn.getModelElementsByType(bpmn.getModel().getType(ExclusiveGateway.class));
     // Collection<ModelElementInstance> orGateways =
     // bpmn.getModelElementsByType(bpmn.getModel().getType(InclusiveGateway.class));
-
     Collection<ModelElementInstance> scripts = bpmn.getModelElementsByType(bpmn.getModel().getType(CamundaScript.class));
+    Collection<BaseElement> elementsWithSetVariable = bpmn.getModelElementsByType(CamundaProperties.class).stream() //
+        .filter(properties -> properties.getCamundaProperties().stream().anyMatch(property -> "simulateSetVariable".equals(property.getCamundaName()))) //
+        .map(ModelElementInstance::getParentElement) //
+        // should be bpmn2:extensionElements now
+        .map(ModelElementInstance::getParentElement) //
+        // only interested in base elements (not form fields or whatever)
+        .filter(BaseElement.class::isInstance) //
+        .map(BaseElement.class::cast) //
+        .collect(Collectors.toList());
 
     for (ModelElementInstance modelElementInstance : serviceTasks) {
       ServiceTask serviceTask = ((ServiceTask) modelElementInstance);
@@ -209,7 +234,8 @@ public class DemoModelInstrumentator {
       CamundaExecutionListener executionListener = (CamundaExecutionListener) modelElementInstance;
       // according to
       // https://docs.camunda.org/manual/7.8/reference/bpmn20/custom-extensions/extension-elements/#executionlistener
-      // all possible parents are baseElements, but the direct parent is 'extensionElements'
+      // all possible parents are baseElements, but the direct parent is
+      // 'extensionElements'
       if (checkKeepLogic((BaseElement) executionListener.getParentElement().getParentElement())) {
         continue;
       }
@@ -255,6 +281,19 @@ public class DemoModelInstrumentator {
       tweakGateway(xorGateway);
     }
 
+    for (BaseElement element : elementsWithSetVariable) {
+      if (Stream
+          .of(Process.class, Task.class, ServiceTask.class, SendTask.class, UserTask.class, BusinessRuleTask.class, ScriptTask.class, ReceiveTask.class,
+              ManualTask.class, ExclusiveGateway.class, SequenceFlow.class, ParallelGateway.class, InclusiveGateway.class, EventBasedGateway.class,
+              StartEvent.class, IntermediateCatchEvent.class, IntermediateThrowEvent.class, EndEvent.class, BoundaryEvent.class, SubProcess.class,
+              CallActivity.class) //
+          .anyMatch(clazz -> clazz.isInstance(element))) {
+        enableSetVariable(element);
+      } else {
+        LOG.warn("Element '{}' has 'simulateSetVariable' set but allows no execution listeners, Ignoring.", element.getId());
+      }
+    }
+
     // Bpmn.validateModel(bpmn);
     String xmlString = Bpmn.convertToString(bpmn);
     tweakedModels.put(processDefinitionKey + ".bpmn", xmlString);
@@ -262,6 +301,14 @@ public class DemoModelInstrumentator {
 
     // store all contained process keys for not tweaking them twice
     bpmn.getModelElementsByType(bpmn.getModel().getType(Process.class)).forEach(instance -> tweakedProcessKeys.add((((Process) instance).getId())));
+  }
+
+  private void enableSetVariable(BaseElement element) {
+    CamundaExecutionListener executionListener = element.getModelInstance().newInstance(CamundaExecutionListener.class);
+    executionListener.setCamundaEvent("end");
+    executionListener.setCamundaClass(VariableSetterDelegate.class.getName());
+    // extension elements should exist because we have camunda:properties
+    element.getExtensionElements().addChildElement(executionListener);
   }
 
   protected boolean checkKeepLogic(BaseElement bpmnBaseElement) {
@@ -312,13 +359,24 @@ public class DemoModelInstrumentator {
     if (modelElementInstance.getExtensionElements() == null) {
       return Optional.empty();
     }
+    return queryCamundaPropertyValues(modelElementInstance, propertyName).findFirst();
+  }
+
+  public static Collection<String> readCamundaPropertyMulti(BaseElement modelElementInstance, String propertyName) {
+    if (modelElementInstance.getExtensionElements() == null) {
+      return Collections.emptyList();
+    }
+    return queryCamundaPropertyValues(modelElementInstance, propertyName).collect(Collectors.toList());
+  }
+
+  protected static Stream<String> queryCamundaPropertyValues(BaseElement modelElementInstance, String propertyName) {
     return modelElementInstance.getExtensionElements().getElementsQuery().filterByType(CamundaProperties.class).list().stream() //
         .map(CamundaProperties::getCamundaProperties) //
         .flatMap(Collection::stream) //
         .filter(property -> property.getCamundaName().equals(propertyName)) //
         .map(CamundaProperty::getCamundaValue) //
         .filter(Objects::nonNull) //
-        .findFirst();
+    ;
   }
 
 }

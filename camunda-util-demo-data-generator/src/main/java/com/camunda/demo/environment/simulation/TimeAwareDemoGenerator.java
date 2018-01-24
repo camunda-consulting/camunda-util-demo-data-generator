@@ -18,7 +18,6 @@ import javax.xml.datatype.DatatypeConstants;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.Duration;
 
-import org.apache.commons.math3.distribution.NormalDistribution;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.externaltask.ExternalTask;
@@ -43,6 +42,12 @@ public class TimeAwareDemoGenerator {
   public static final int METRIC_INTERVAL_MINUTES = 15;
 
   private static final Logger LOG = LoggerFactory.getLogger(TimeAwareDemoGenerator.class);
+
+  private static TimeAwareDemoGenerator runningInstance = null;
+
+  public static TimeAwareDemoGenerator getRunningInstance() {
+    return runningInstance;
+  }
 
   private String processDefinitionKey;
   private int numberOfDaysInPast;
@@ -72,6 +77,8 @@ public class TimeAwareDemoGenerator {
   // for time period parsing
   private DatatypeFactory datatypeFactory;
 
+  private Date previousStartTime;
+
   public TimeAwareDemoGenerator(ProcessEngine processEngine) {
     this(processEngine, null, null);
   }
@@ -92,43 +99,54 @@ public class TimeAwareDemoGenerator {
     }
   }
 
-  public void generateData() {
-    long count = engine.getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey(processDefinitionKey)
-        .variableValueEquals(DemoDataGenerator.VAR_NAME_GENERATED, true).count();
-
-    if (count > 0 && (!runAlways)) {
-      LOG.info("Skipped data generation because already generated data found. Set simulateRunAlways=true in bpmn to generate data despite that.");
-      return;
+  public void run() {
+    if (runningInstance != null) {
+      throw new RuntimeException("There can only be one! (running TimeAwareDemoGenerator)");
     }
+    runningInstance = this;
 
-    instrumentator = new DemoModelInstrumentator(engine, originalProcessApplication, simulatingProcessApplication);
-    instrumentator.tweakProcessDefinition(processDefinitionKey); // root process
-                                                                 // definition
-    if (additionalModelKeys != null) {
-      instrumentator.addAdditionalModels(additionalModelKeys);
-    }
+    try {
+      long count = engine.getHistoryService().createHistoricProcessInstanceQuery().processDefinitionKey(processDefinitionKey)
+          .variableValueEquals(DemoDataGenerator.VAR_NAME_GENERATED, true).count();
 
-    deploymentId = instrumentator.deployTweakedModels();
-
-    synchronized (engine) {
-      ProcessEngineConfigurationImpl processEngineConfigurationImpl = (ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration();
-      processEngineConfigurationImpl.getJobExecutor().shutdown();
-      boolean metrics = processEngineConfigurationImpl.isMetricsEnabled() && processEngineConfigurationImpl.isDbMetricsReporterActivate();
-      if (metrics) {
-        processEngineConfigurationImpl.getDbMetricsReporter().setReporterId("DEMO-DATA-GENERATOR");
+      if (count > 0 && (!runAlways)) {
+        LOG.info("Skipped data generation because already generated data found. Set simulateRunAlways=true in bpmn to generate data despite that.");
+        return;
       }
 
-      try {
-        simulate();
-      } finally {
-        ClockUtil.reset();
-        instrumentator.restoreOriginalModels();
+      instrumentator = new DemoModelInstrumentator(engine, originalProcessApplication, simulatingProcessApplication);
+      instrumentator.tweakProcessDefinition(processDefinitionKey); // root
+                                                                   // process
+                                                                   // definition
+      if (additionalModelKeys != null) {
+        instrumentator.addAdditionalModels(additionalModelKeys);
+      }
+
+      deploymentId = instrumentator.deployTweakedModels();
+
+      synchronized (engine) {
+        ProcessEngineConfigurationImpl processEngineConfigurationImpl = (ProcessEngineConfigurationImpl) engine.getProcessEngineConfiguration();
+        processEngineConfigurationImpl.getJobExecutor().shutdown();
+        boolean metrics = processEngineConfigurationImpl.isMetricsEnabled() && processEngineConfigurationImpl.isDbMetricsReporterActivate();
         if (metrics) {
-          processEngineConfigurationImpl.getDbMetricsReporter().reportNow();
-          processEngineConfigurationImpl.getDbMetricsReporter().setReporterId(processEngineConfigurationImpl.getMetricsReporterIdProvider().provideId(engine));
+          processEngineConfigurationImpl.getDbMetricsReporter().setReporterId("DEMO-DATA-GENERATOR");
         }
-        processEngineConfigurationImpl.getJobExecutor().start();
+
+        try {
+          simulate();
+        } finally {
+          ClockUtil.reset();
+          instrumentator.restoreOriginalModels();
+          if (metrics) {
+            processEngineConfigurationImpl.getDbMetricsReporter().reportNow();
+            processEngineConfigurationImpl.getDbMetricsReporter()
+                .setReporterId(processEngineConfigurationImpl.getMetricsReporterIdProvider().provideId(engine));
+          }
+          processEngineConfigurationImpl.getJobExecutor().start();
+        }
       }
+    } finally {
+      runningInstance = null;
     }
   }
 
@@ -139,12 +157,15 @@ public class TimeAwareDemoGenerator {
   }
 
   protected void simulate() {
-    // fix the real time for whole simulation
-    Date theRealNow = new Date();
+    // if no explicit stop time is defined, we fix the current real wall clock
+    // time as stop time
+    if (stopTime == null) {
+      stopTime = new Date();
+    }
 
     // calculate last time to start
     Calendar lastTimeToStart = Calendar.getInstance();
-    lastTimeToStart.setTime(theRealNow);
+    lastTimeToStart.setTime(stopTime);
     lastTimeToStart.add(Calendar.DAY_OF_YEAR, -1 * numberOfDaysToSkip);
     lastTimeToStart.set(Calendar.HOUR_OF_DAY, 0);
     lastTimeToStart.set(Calendar.MINUTE, 0);
@@ -153,9 +174,9 @@ public class TimeAwareDemoGenerator {
 
     Set<String> runningProcessInstanceIds = new TreeSet<>();
     Set<String> processInstancIdsAlreadyReachedCurrentTime = new HashSet<>();
-    Date nextStartTime = calculateNextStartTime(null, lastTimeToStart.getTime());
+    nextStartTime = calculateNextStartTime(null, lastTimeToStart.getTime());
     while (true) {
-      Optional<Work<?>> candidate = calculateNextSimulationStep(theRealNow, runningProcessInstanceIds, processInstancIdsAlreadyReachedCurrentTime);
+      Optional<Work<?>> candidate = calculateNextSimulationStep(stopTime, runningProcessInstanceIds, processInstancIdsAlreadyReachedCurrentTime);
 
       // check if we are finally done
       if (!candidate.isPresent() && nextStartTime == null) {
@@ -164,12 +185,18 @@ public class TimeAwareDemoGenerator {
 
       // check if we have to start a new instance before next simulation step
       if (nextStartTime != null && (!candidate.isPresent() || candidate.get().getDue().after(nextStartTime))) {
+        if (firstStartTime == null) {
+          firstStartTime = nextStartTime;
+        }
+        previousStartTime = nextStartTime;
+
         // start new instance
         ClockUtil.setCurrentTime(nextStartTime);
         ProcessInstance newInstance = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
             Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
         runningProcessInstanceIds.add(newInstance.getId());
         nextStartTime = calculateNextStartTime(nextStartTime, lastTimeToStart.getTime());
+        
         continue;
       }
 
@@ -383,6 +410,12 @@ public class TimeAwareDemoGenerator {
 
   private Date nextMetricTime = null;
 
+  private Date stopTime;
+
+  private Date firstStartTime;
+
+  private Date nextStartTime;
+
   class MetricWork extends Work<Object> {
 
     public MetricWork(Object workItem, ProcessInstance pi) {
@@ -560,7 +593,7 @@ public class TimeAwareDemoGenerator {
     timeBetweenStartsBusinessDays = new StatisticalDistribution(mean, standardDeviation);
     return this;
   }
-  
+
   public TimeAwareDemoGenerator timeBetweenStartsBusinessDays(String mean, String standardDeviation) {
     timeBetweenStartsBusinessDays = new StatisticalDistribution(parseTime(mean).get(), parseTime(standardDeviation).get());
     return this;
@@ -606,4 +639,19 @@ public class TimeAwareDemoGenerator {
     return this;
   }
 
+  public Date getStopTime() {
+    return stopTime;
+  }
+  
+  public Date getFirstStartTime() {
+    return firstStartTime;
+  }
+  
+  public Date getPreviousStartTime() {
+    return previousStartTime;
+  }
+  
+  public Date getNextStartTime() {
+    return nextStartTime;
+  }
 }
