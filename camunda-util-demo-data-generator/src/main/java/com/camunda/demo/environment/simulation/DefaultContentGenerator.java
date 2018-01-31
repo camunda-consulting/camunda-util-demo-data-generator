@@ -1,23 +1,16 @@
 package com.camunda.demo.environment.simulation;
 
-import java.awt.PageAttributes.MediaType;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-import javax.mail.internet.ContentType;
-
-import org.assertj.core.util.Arrays;
 import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.slf4j.Logger;
@@ -199,35 +192,35 @@ public class DefaultContentGenerator extends ContentGenerator {
   }
 
   public Object uniformFromArgs2(Object o1, Object o2) {
-    return uniformFromArray(Arrays.array(o1, o2));
+    return uniformFromArray(new Object[] { o1, o2 });
   }
 
   public Object uniformFromArgs3(Object o1, Object o2, Object o3) {
-    return uniformFromArray(Arrays.array(o1, o2, o3));
+    return uniformFromArray(new Object[] { o1, o2, o3 });
   }
 
   public Object uniformFromArgs4(Object o1, Object o2, Object o3, Object o4) {
-    return uniformFromArray(Arrays.array(o1, o2, o3, o4));
+    return uniformFromArray(new Object[] { o1, o2, o3, o4 });
   }
 
   public Object uniformFromArgs5(Object o1, Object o2, Object o3, Object o4, Object o5) {
-    return uniformFromArray(Arrays.array(o1, o2, o3, o4, o5));
+    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5 });
   }
 
   public Object uniformFromArgs6(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6) {
-    return uniformFromArray(Arrays.array(o1, o2, o3, o4, o5, o6));
+    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6 });
   }
 
   public Object uniformFromArgs7(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7) {
-    return uniformFromArray(Arrays.array(o1, o2, o3, o4, o5, o6, o7));
+    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7 });
   }
 
   public Object uniformFromArgs8(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7, Object o8) {
-    return uniformFromArray(Arrays.array(o1, o2, o3, o4, o5, o6, o7, o8));
+    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8 });
   }
 
   public Object uniformFromArgs9(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7, Object o8, Object o9) {
-    return uniformFromArray(Arrays.array(o1, o2, o3, o4, o5, o6, o7, o8, o9));
+    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8, o9 });
   }
 
   public Object uniformFromArray(Object[] objects) {
