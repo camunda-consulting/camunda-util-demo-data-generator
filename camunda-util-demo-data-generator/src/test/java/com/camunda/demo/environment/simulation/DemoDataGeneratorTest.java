@@ -23,14 +23,20 @@ import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
+import org.camunda.bpm.engine.variable.value.TypedValue;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
+import org.camunda.bpm.model.bpmn.builder.EndEventBuilder;
+import org.camunda.bpm.model.bpmn.impl.instance.camunda.CamundaPropertiesImpl;
 import org.camunda.bpm.model.bpmn.instance.BpmnModelElementInstance;
 import org.camunda.bpm.model.bpmn.instance.Definitions;
+import org.camunda.bpm.model.bpmn.instance.Extension;
 import org.camunda.bpm.model.bpmn.instance.FlowNode;
+import org.camunda.bpm.model.bpmn.instance.Process;
 import org.camunda.bpm.model.bpmn.instance.SequenceFlow;
 import org.camunda.bpm.model.bpmn.instance.ServiceTask;
 import org.camunda.bpm.model.bpmn.instance.StartEvent;
+import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
 import org.camunda.bpm.model.xml.instance.ModelElementInstance;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,7 +67,7 @@ public class DemoDataGeneratorTest {
   public void setup() {
     init(rule.getProcessEngine());
   }
-
+  
   @Test
   @Deployment(resources = "simulate.bpmn")
   public void testSimulationDrive() {
@@ -97,6 +103,8 @@ public class DemoDataGeneratorTest {
         .processDefinitionKey("setVariable").list();
 
     Set<String> uniqueCheck = new HashSet<>();
+    long countMale = 0;
+    long countFemale = 0;
 
     for (HistoricProcessInstance pi : finished) {
       List<HistoricVariableInstance> vars = historyService().createHistoricVariableInstanceQuery().processInstanceId(pi.getId()).list();
@@ -108,13 +116,27 @@ public class DemoDataGeneratorTest {
         }
         if ("dto".equals(vi.getName())) {
           SampleDTO dto = (SampleDTO) vi.getValue();
+
           assert (!uniqueCheck.contains(dto.getUuid()));
           uniqueCheck.add(dto.getUuid());
+
+          assert (dto.getPerson().getSex().equals("male") || dto.getPerson().getSex().equals("female"));
+          if (dto.getPerson().getSex().equals("male"))
+            countMale++;
+          if (dto.getPerson().getSex().equals("female"))
+            countFemale++;
+
           found++;
+
+          System.out.println(dto);
         }
       }
       assertEquals(2, found);
     }
+
+    // even distribution from uniformFromArgs2 ?
+    assert ((double) countMale / (countMale + countFemale) > 0.4);
+    assert ((double) countMale / (countMale + countFemale) < 0.6);
   }
 
   @Test

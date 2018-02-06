@@ -36,12 +36,12 @@
 		<dependency>
 			<groupId>org.camunda.spin</groupId>
 			<artifactId>camunda-spin-dataformat-all</artifactId>
-			<scope>test</scope>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.camunda.bpm</groupId>
 			<artifactId>camunda-engine-plugin-spin</artifactId>
-			<scope>test</scope>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

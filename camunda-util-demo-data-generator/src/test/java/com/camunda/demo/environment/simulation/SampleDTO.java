@@ -22,36 +22,42 @@ public class SampleDTO implements Serializable {
     this.amount = amount;
   }
 
-  protected String getUuid() {
+  public String getUuid() {
     return uuid;
   }
 
-  protected void setUuid(String uuid) {
+  public void setUuid(String uuid) {
     this.uuid = uuid;
   }
 
-  protected Person getPerson() {
+  public Person getPerson() {
     return person;
   }
 
-  protected void setPerson(Person person) {
+  public void setPerson(Person person) {
     this.person = person;
   }
 
-  protected double getPrice() {
+  public double getPrice() {
     return price;
   }
 
-  protected void setPrice(double price) {
+  public void setPrice(double price) {
     this.price = price;
   }
 
-  protected long getAmount() {
+  public long getAmount() {
     return amount;
   }
 
-  protected void setAmount(long amount) {
+  public void setAmount(long amount) {
     this.amount = amount;
   }
 
+  @Override
+  public String toString() {
+    return String.format("SampleDTO [getUuid()=%s, getPerson()=%s, getPrice()=%f, getAmount()=%d]", getUuid(), getPerson(), getPrice(), getAmount());
+  }
+
+  
 }

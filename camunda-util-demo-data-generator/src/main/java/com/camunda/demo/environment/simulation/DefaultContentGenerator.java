@@ -12,7 +12,10 @@ import java.util.Date;
 import java.util.List;
 
 import org.camunda.bpm.engine.variable.Variables;
+import org.camunda.bpm.engine.variable.Variables.SerializationDataFormats;
 import org.camunda.bpm.engine.variable.value.FileValue;
+import org.camunda.bpm.engine.variable.value.SerializationDataFormat;
+import org.camunda.bpm.engine.variable.value.TypedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -325,7 +328,7 @@ public class DefaultContentGenerator extends ContentGenerator {
   }
 
   public String email(String name, String company) {
-    return name.trim().toLowerCase().replaceAll("\\W", ".") + "@" + company.trim().toLowerCase().replaceAll("\\W", "-") + ".com";
+    return name.trim().toLowerCase().replaceAll("\\s", "").replaceAll("\\W", ".") + "@" + company.trim().toLowerCase().replaceAll("\\W", "-") + ".com";
   }
 
   public String format1(String pattern, Object o1) {
@@ -362,6 +365,18 @@ public class DefaultContentGenerator extends ContentGenerator {
 
   public String format9(String pattern, Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7, Object o8, Object o9) {
     return String.format(pattern, o1, o2, o3, o4, o5, o6, o7, o8, o9);
+  }
+
+  public TypedValue json(Object o) {
+    return Variables.objectValue(o).serializationDataFormat(SerializationDataFormats.JSON).create();
+  }
+
+  public TypedValue xml(Object o) {
+    return Variables.objectValue(o).serializationDataFormat(SerializationDataFormats.XML).create();
+  }
+
+  public TypedValue java(Object o) {
+    return Variables.objectValue(o).serializationDataFormat(SerializationDataFormats.JAVA).create();
   }
 
   // protected Constructor<?> getConstructorForArgs(Class<?> klass, Object[]

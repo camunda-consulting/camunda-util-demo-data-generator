@@ -1,16 +1,18 @@
 package com.camunda.demo.environment.simulation;
 
+import java.io.Serializable;
 import java.util.Calendar;
 import java.util.Date;
 
-public class Person {
+public class Person implements Serializable {
+  private static final long serialVersionUID = -2365972184884950033L;
 
   private String name;
   private String email;
   private Date birthday;
   private String sex;
   private int age;
-  
+
   public Person() {
   }
 
@@ -73,4 +75,12 @@ public class Person {
   public void setAge(int age) {
     this.age = age;
   }
+
+  @Override
+  public String toString() {
+    return String.format("Person [getBirthday()=%s, getSex()=%s, getEmail()=%s, getName()=%s, getAge()=%s]", getBirthday(), getSex(), getEmail(), getName(),
+        getAge());
+  }
+  
+  
 }

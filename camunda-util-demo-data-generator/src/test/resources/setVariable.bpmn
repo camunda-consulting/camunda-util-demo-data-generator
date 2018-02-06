@@ -38,7 +38,9 @@
         <camunda:properties>
           <camunda:property name="durationMean" value="PT1M" />
           <camunda:property name="durationSd" value="0" />
-          <camunda:property name="simulateSetVariable" value="dto=${g:createDTO(g:format1(&#39;A%05d&#39;, g:uniqueNumber()),null,g:uniformDouble(100.0, 200.0), g:uniformLong(1500, 2000))}" />
+          <camunda:property name="simulateSetVariable" value="dto=${g:json(g:createDTO(g:format1(&#39;A%05d&#39;, g:uniqueNumber()), g:createPerson(person_name, g:email(person_name, &#39;Example Company&#39;), g:uniformBirthdate(16,79), person_sex), g:uniformDouble(100.0, 200.0), g:uniformLong(1500, 2000)))}" />
+          <camunda:property name="simulateSetVariable" value="person_name=${g:surnameEnglish()}, ${person_sex.equals(&#39;male&#39;) ? g:firstnameMale() : g:firstnameFemale()}" />
+          <camunda:property name="simulateSetVariable" value="person_sex=${g:uniformFromArgs2(&#39;male&#39;,&#39;female&#39;)}" />
         </camunda:properties>
       </bpmn2:extensionElements>
       <bpmn2:incoming>SequenceFlow_0dbjgvb</bpmn2:incoming>
