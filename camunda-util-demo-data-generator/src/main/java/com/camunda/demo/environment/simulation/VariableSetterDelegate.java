@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javassist.CannotCompileException;
+import javassist.ClassClassPath;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtField;
@@ -140,6 +141,7 @@ public class VariableSetterDelegate implements ExecutionListener {
           .toArray(Method[]::new);
 
       ClassPool classPool = ClassPool.getDefault();
+      classPool.insertClassPath(new ClassClassPath(generatorClass));
       CtClass wrapperCtClass = classPool.makeClass("cam.camunda.demo.environment.simulation.StaticGeneratorWrapper");
 
       try {
