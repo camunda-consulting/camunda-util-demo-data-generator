@@ -4,10 +4,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Array;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -194,36 +197,44 @@ public class DefaultContentGenerator extends ContentGenerator {
     return Date.from(Instant.ofEpochMilli(chosenMillis));
   }
 
-  public Object uniformFromArgs2(Object o1, Object o2) {
-    return uniformFromArray(new Object[] { o1, o2 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs2(T o1, T o2) {
+    return (T) uniformFromArray(new Object[] { o1, o2 });
   }
 
-  public Object uniformFromArgs3(Object o1, Object o2, Object o3) {
-    return uniformFromArray(new Object[] { o1, o2, o3 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs3(T o1, T o2, T o3) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3 });
   }
 
-  public Object uniformFromArgs4(Object o1, Object o2, Object o3, Object o4) {
-    return uniformFromArray(new Object[] { o1, o2, o3, o4 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs4(T o1, T o2, T o3, T o4) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3, o4 });
   }
 
-  public Object uniformFromArgs5(Object o1, Object o2, Object o3, Object o4, Object o5) {
-    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs5(T o1, T o2, T o3, T o4, T o5) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3, o4, o5 });
   }
 
-  public Object uniformFromArgs6(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6) {
-    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs6(T o1, T o2, T o3, T o4, T o5, T o6) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6 });
   }
 
-  public Object uniformFromArgs7(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7) {
-    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs7(T o1, T o2, T o3, T o4, T o5, T o6, T o7) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7 });
   }
 
-  public Object uniformFromArgs8(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7, Object o8) {
-    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs8(T o1, T o2, T o3, T o4, T o5, T o6, T o7, T o8) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8 });
   }
 
-  public Object uniformFromArgs9(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6, Object o7, Object o8, Object o9) {
-    return uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8, o9 });
+  @SuppressWarnings("unchecked")
+  public <T> T uniformFromArgs9(T o1, T o2, T o3, T o4, T o5, T o6, T o7, T o8, T o9) {
+    return (T) uniformFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8, o9 });
   }
 
   public Object uniformFromArray(Object[] objects) {
@@ -377,6 +388,59 @@ public class DefaultContentGenerator extends ContentGenerator {
 
   public TypedValue java(Object o) {
     return Variables.objectValue(o).serializationDataFormat(SerializationDataFormats.JAVA).create();
+  }
+
+  public <T> List<T> listFromArray(T[] items) {
+    return Arrays.asList(items);
+  }
+
+  public List<?> emptyList() {
+    return Collections.emptyList();
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs1(T o1) {
+    return (List<T>) listFromArray(new Object[] { o1 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs2(T o1, T o2) {
+    return (List<T>) listFromArray(new Object[] { o1, o2 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs3(T o1, T o2, T o3) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs4(T o1, T o2, T o3, T o4) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3, o4 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs5(T o1, T o2, T o3, T o4, T o5) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3, o4, o5 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs6(T o1, T o2, T o3, T o4, T o5, T o6) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3, o4, o5, o6 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs7(T o1, T o2, T o3, T o4, T o5, T o6, T o7) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs8(T o1, T o2, T o3, T o4, T o5, T o6, T o7, T o8) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8 });
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> List<T> listFromArgs9(T o1, T o2, T o3, T o4, T o5, T o6, T o7, T o8, T o9) {
+    return (List<T>) listFromArray(new Object[] { o1, o2, o3, o4, o5, o6, o7, o8, o9 });
   }
 
   // protected Constructor<?> getConstructorForArgs(Class<?> klass, Object[]
