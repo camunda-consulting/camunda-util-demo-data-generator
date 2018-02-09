@@ -21,6 +21,7 @@ import org.camunda.bpm.engine.repository.DeploymentBuilder;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
+import org.camunda.bpm.model.bpmn.impl.BpmnModelConstants;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
 import org.camunda.bpm.model.bpmn.instance.BoundaryEvent;
 import org.camunda.bpm.model.bpmn.instance.BusinessRuleTask;
@@ -269,8 +270,12 @@ public class DemoModelInstrumentator {
 
     for (ModelElementInstance modelElementInstance : userTasks) {
       UserTask userTask = ((UserTask) modelElementInstance);
-      userTask.setCamundaAssignee(null);
-      userTask.setCamundaCandidateGroups(null);
+      // This does not work, it sets the values to empty strings, but we want
+      // them to be removed
+      // userTask.setCamundaAssignee(null);
+      // userTask.setCamundaCandidateGroups(null);
+      userTask.removeAttributeNs(BpmnModelConstants.CAMUNDA_NS, BpmnModelConstants.CAMUNDA_ATTRIBUTE_ASSIGNEE);
+      userTask.removeAttributeNs(BpmnModelConstants.CAMUNDA_NS, BpmnModelConstants.CAMUNDA_ATTRIBUTE_CANDIDATE_GROUPS);
     }
 
     for (ModelElementInstance modelElementInstance : xorGateways) {
