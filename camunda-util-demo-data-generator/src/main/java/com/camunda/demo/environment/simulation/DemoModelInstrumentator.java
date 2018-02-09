@@ -270,10 +270,11 @@ public class DemoModelInstrumentator {
 
     for (ModelElementInstance modelElementInstance : userTasks) {
       UserTask userTask = ((UserTask) modelElementInstance);
-      // This does not work, it sets the values to empty strings, but we want
-      // them to be removed
-      // userTask.setCamundaAssignee(null);
-      // userTask.setCamundaCandidateGroups(null);
+      if (checkKeepLogic(userTask)) {
+        continue;
+      }
+      // TODO: Wait for https://app.camunda.com/jira/browse/CAM-4178 and set
+      // to null!
       userTask.removeAttributeNs(BpmnModelConstants.CAMUNDA_NS, BpmnModelConstants.CAMUNDA_ATTRIBUTE_ASSIGNEE);
       userTask.removeAttributeNs(BpmnModelConstants.CAMUNDA_NS, BpmnModelConstants.CAMUNDA_ATTRIBUTE_CANDIDATE_GROUPS);
     }
