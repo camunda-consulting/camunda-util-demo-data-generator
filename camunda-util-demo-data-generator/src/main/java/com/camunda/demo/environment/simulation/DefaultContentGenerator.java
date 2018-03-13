@@ -183,7 +183,7 @@ public class DefaultContentGenerator extends ContentGenerator {
    */
   public Date uniformBirthdate(int minAge, int maxAge) {
     Calendar calMin = Calendar.getInstance();
-    calMin.setTime(getCurrentSimulationTime() != null ? getCurrentSimulationTime() : new Date());
+    calMin.setTime(currentSimulationTime() != null ? currentSimulationTime() : new Date());
     calMin.set(Calendar.HOUR_OF_DAY, 0);
     calMin.set(Calendar.MINUTE, 0);
     calMin.set(Calendar.SECOND, 0);

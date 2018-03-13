@@ -43,15 +43,16 @@ public class VariableSetterDelegate implements ExecutionListener {
       ContentGenerator contentGenerator = ContentGeneratorRegistry.getContentGenerator(element);
       contentGenerator.incActivityVisitCount();
       contentGenerator.setCurrentSimulationTime(ClockUtil.getCurrentTime());
+      contentGenerator.setBusinessKey(execution.getProcessBusinessKey());
 
       Optional<TimeAwareDemoGenerator> generatorO = Optional.ofNullable(TimeAwareDemoGenerator.getRunningInstance());
       contentGenerator.setFirstStartTime(generatorO.map(TimeAwareDemoGenerator::getFirstStartTime).orElse(null));
       contentGenerator.setNextStartTime(generatorO.map(TimeAwareDemoGenerator::getNextStartTime).orElse(null));
       contentGenerator.setPreviousStartTime(generatorO.map(TimeAwareDemoGenerator::getPreviousStartTime).orElse(null));
       contentGenerator.setStopTime(generatorO.map(TimeAwareDemoGenerator::getStopTime).orElse(null));
-      Date firstStartTime = contentGenerator.getFirstStartTime();
-      Date previousStartTime = contentGenerator.getPreviousStartTime();
-      Date stopTime = contentGenerator.getStopTime();
+      Date firstStartTime = contentGenerator.firstStartTime();
+      Date previousStartTime = contentGenerator.previousStartTime();
+      Date stopTime = contentGenerator.stopTime();
       if (firstStartTime != null && previousStartTime != null && stopTime != null) {
         contentGenerator.setPercentDone((double) previousStartTime.getTime() / (stopTime.getTime() - firstStartTime.getTime()));
       } else {

@@ -11,41 +11,46 @@ abstract public class ContentGenerator {
   Date nextStartTime = null;
   Date stopTime = null;
   Double percentDone = null;
+  String businessKey = null;
 
   public ContentGenerator() {
     super();
-  }
-
-  public Long getActivityVisitCount() {
-    return activityVisitCount;
   }
 
   protected void incActivityVisitCount() {
     activityVisitCount++;
   }
 
-  public Date getCurrentSimulationTime() {
+  public Long activityVisitCount() {
+    return activityVisitCount;
+  }
+
+  public Date currentSimulationTime() {
     return currentSimulationTime;
   }
 
-  public Date getFirstStartTime() {
+  public Date firstStartTime() {
     return firstStartTime;
   }
 
-  public Date getPreviousStartTime() {
+  public Date previousStartTime() {
     return previousStartTime;
   }
 
-  public Date getNextStartTime() {
+  public Date nextStartTime() {
     return nextStartTime;
   }
 
-  public Date getStopTime() {
+  public Date stopTime() {
     return stopTime;
   }
 
-  public Double getPercentDone() {
+  public Double percentDone() {
     return percentDone;
+  }
+
+  public String businessKey() {
+    return businessKey;
   }
 
   protected void setCurrentSimulationTime(Date currentSimulationTime) {
@@ -70,6 +75,10 @@ abstract public class ContentGenerator {
 
   protected void setPercentDone(Double percentDone) {
     this.percentDone = percentDone;
+  }
+
+  protected void setBusinessKey(String businessKey) {
+    this.businessKey = businessKey;
   }
 
 }
