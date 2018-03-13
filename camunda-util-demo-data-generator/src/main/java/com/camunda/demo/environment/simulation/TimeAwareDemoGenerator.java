@@ -23,15 +23,26 @@ import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.externaltask.ExternalTask;
 import org.camunda.bpm.engine.history.HistoricActivityInstance;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.camunda.bpm.engine.impl.context.Context;
+import org.camunda.bpm.engine.impl.core.variable.scope.AbstractVariableScope;
+import org.camunda.bpm.engine.impl.delegate.ExpressionGetInvocation;
+import org.camunda.bpm.engine.impl.el.Expression;
+import org.camunda.bpm.engine.impl.el.ExpressionManager;
+import org.camunda.bpm.engine.impl.javax.el.ELContext;
+import org.camunda.bpm.engine.impl.javax.el.ValueExpression;
 import org.camunda.bpm.engine.impl.metrics.reporter.DbMetricsReporter;
+import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.TimerEntity;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.runtime.EventSubscription;
 import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.variable.Variables;
+import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
+import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,9 +126,8 @@ public class TimeAwareDemoGenerator {
       }
 
       instrumentator = new DemoModelInstrumentator(engine, originalProcessApplication, simulatingProcessApplication);
-      instrumentator.tweakProcessDefinition(processDefinitionKey); // root
-                                                                   // process
-                                                                   // definition
+      startEvent = instrumentator.tweakProcessDefinition(processDefinitionKey);
+
       if (additionalModelKeys != null) {
         instrumentator.addAdditionalModels(additionalModelKeys);
       }
@@ -157,6 +167,18 @@ public class TimeAwareDemoGenerator {
   }
 
   protected void simulate() {
+    // refresh content data generator
+    ContentGeneratorRegistry.clear();
+
+    // get expression and content generator for business key
+    ContentGenerator contentGenerator = ContentGeneratorRegistry.getContentGenerator(startEvent);
+    Optional<String> businessKeyExpression = DemoModelInstrumentator.readCamundaProperty(startEvent, "simulateSetBusinessKey");
+    Class<?> wrapperClass = ContentGeneratorRegistry.getWrapperClass(contentGenerator.getClass());
+    ExpressionManager expressionManager = ContentGeneratorRegistry.getExpressionManager(engine.getProcessEngineConfiguration(), wrapperClass);
+    ContentGeneratorRegistry.setGenerator(wrapperClass, contentGenerator);
+    Optional<ValueExpression> bkValueExpressionO = businessKeyExpression.map(expressionManager::createValueExpression);
+    ELContext elContext = expressionManager.getElContext(new ExecutionEntity());
+
     // if no explicit stop time is defined, we fix the current real wall clock
     // time as stop time
     if (stopTime == null) {
@@ -173,10 +195,10 @@ public class TimeAwareDemoGenerator {
     lastTimeToStart.set(Calendar.MILLISECOND, 0);
 
     Set<String> runningProcessInstanceIds = new TreeSet<>();
-    Set<String> processInstancIdsAlreadyReachedCurrentTime = new HashSet<>();
+    Set<String> processInstanceIdsAlreadyReachedCurrentTime = new HashSet<>();
     nextStartTime = calculateNextStartTime(null, lastTimeToStart.getTime());
     while (true) {
-      Optional<Work<?>> candidate = calculateNextSimulationStep(stopTime, runningProcessInstanceIds, processInstancIdsAlreadyReachedCurrentTime);
+      Optional<Work<?>> candidate = calculateNextSimulationStep(stopTime, runningProcessInstanceIds, processInstanceIdsAlreadyReachedCurrentTime);
 
       // check if we are finally done
       if (!candidate.isPresent() && nextStartTime == null) {
@@ -192,11 +214,28 @@ public class TimeAwareDemoGenerator {
 
         // start new instance
         ClockUtil.setCurrentTime(nextStartTime);
-        ProcessInstance newInstance = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
+
+        // generate business key
+        Optional<String> businessKey = Optional.empty();
+        if (bkValueExpressionO.isPresent()) {
+          ExpressionGetInvocation invocation = new ExpressionGetInvocation(bkValueExpressionO.get(), elContext, null);
+          try {
+            // ((ProcessEngineConfigurationImpl)
+            // engine.getProcessEngineConfiguration()).getDelegateInterceptor().handleInvocation(invocation);
+            invocation.proceed();
+            businessKey = Optional.of(invocation.getInvocationResult().toString());
+          } catch (Exception e) {
+            throw new RuntimeException("Could not evaluate business key expression", e);
+          }
+        }
+
+        // fire!
+        ProcessInstance newInstance = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey, businessKey.orElse(null),
             Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
+
         runningProcessInstanceIds.add(newInstance.getId());
         nextStartTime = calculateNextStartTime(nextStartTime, lastTimeToStart.getTime());
-        
+
         continue;
       }
 
@@ -416,6 +455,8 @@ public class TimeAwareDemoGenerator {
 
   private Date nextStartTime;
 
+  private StartEvent startEvent;
+
   class MetricWork extends Work<Object> {
 
     public MetricWork(Object workItem, ProcessInstance pi) {
@@ -537,6 +578,9 @@ public class TimeAwareDemoGenerator {
          * it will schedule next. Cannot be handled by engine, because there is
          * no "counter" in the database for executions - it has to trust the
          * clock on the wall.
+         * 
+         * Hence, we solve that by advancing the time as it would happen in real
+         * live systems...
          */
         Calendar cal = Calendar.getInstance();
         cal.setTime(ClockUtil.getCurrentTime());
@@ -642,15 +686,15 @@ public class TimeAwareDemoGenerator {
   public Date getStopTime() {
     return stopTime;
   }
-  
+
   public Date getFirstStartTime() {
     return firstStartTime;
   }
-  
+
   public Date getPreviousStartTime() {
     return previousStartTime;
   }
-  
+
   public Date getNextStartTime() {
     return nextStartTime;
   }

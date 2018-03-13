@@ -41,6 +41,7 @@ import org.camunda.bpm.model.xml.instance.ModelElementInstance;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Categories.ExcludeCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +68,7 @@ public class DemoDataGeneratorTest {
   public void setup() {
     init(rule.getProcessEngine());
   }
-  
+
   @Test
   @Deployment(resources = "simulate.bpmn")
   public void testSimulationDrive() {
@@ -85,6 +86,99 @@ public class DemoDataGeneratorTest {
     // assertThat(pi).task();
     // complete(task());
     // assertThat(pi).isEnded();
+  }
+
+  @Test
+  @Deployment(resources = "businessKey.bpmn")
+  public void testSetBusinessNoInitial() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("businessKeyNoInitial") //
+        .additionalModelKeys("businessKeySub") //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:00") //
+        .includeWeekend(true) //
+        .timeBetweenStartsBusinessDays(864.0, 0.0);
+    try {
+      generator.run();
+      assert (false); // expect exception, never get here
+    } catch (Exception e) {
+      assert (e.getMessage().contains("has no default start event"));
+    }
+  }
+
+  @Test
+  @Deployment(resources = "businessKey.bpmn")
+  public void testSetBusinessKeyTimer() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("businessKeyTimer") //
+        .additionalModelKeys("businessKeySub") //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:00") //
+        .includeWeekend(true) //
+        .timeBetweenStartsBusinessDays(864.0, 0.0);
+    generator.run();
+
+    List<HistoricProcessInstance> parents = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
+        .processDefinitionKey("businessKeyTimer").list();
+    List<HistoricProcessInstance> subs = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
+        .processDefinitionKey("businessKeySub").list();
+
+    Set<String> uniqueCheckParent = new HashSet<>();
+    Set<String> uniqueCheckSub = new HashSet<>();
+
+    for (HistoricProcessInstance pi : parents) {
+      assert (pi.getBusinessKey() != null);
+      assert (pi.getBusinessKey().startsWith("BK_"));
+      assert (pi.getBusinessKey().length() > 3);
+      assert (!uniqueCheckParent.contains(pi.getBusinessKey()));
+      uniqueCheckParent.add(pi.getBusinessKey());
+    }
+    for (HistoricProcessInstance pi : subs) {
+      assert (pi.getBusinessKey() != null);
+      assert (pi.getBusinessKey().startsWith("BK_"));
+      assert (pi.getBusinessKey().length() > 3);
+      assert (!uniqueCheckSub.contains(pi.getBusinessKey()));
+      uniqueCheckSub.add(pi.getBusinessKey());
+    }
+  }
+
+  @Test
+  @Deployment(resources = "businessKey.bpmn")
+  public void testSetBusinessKey() {
+    TimeAwareDemoGenerator generator = new TimeAwareDemoGenerator(processEngine()) //
+        .processDefinitionKey("businessKeyParent") //
+        .additionalModelKeys("businessKeySub") //
+        .numberOfDaysInPast(1) //
+        .startTimeBusinessDay("00:00") //
+        .endTimeBusinessDay("23:00") //
+        .includeWeekend(true) //
+        .timeBetweenStartsBusinessDays(864.0, 0.0);
+    generator.run();
+
+    List<HistoricProcessInstance> parents = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
+        .processDefinitionKey("businessKeyParent").list();
+    List<HistoricProcessInstance> subs = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
+        .processDefinitionKey("businessKeySub").list();
+
+    Set<String> uniqueCheckParent = new HashSet<>();
+    Set<String> uniqueCheckSub = new HashSet<>();
+
+    for (HistoricProcessInstance pi : parents) {
+      assert (pi.getBusinessKey() != null);
+      assert (pi.getBusinessKey().startsWith("BK_"));
+      assert (pi.getBusinessKey().length() > 3);
+      assert (!uniqueCheckParent.contains(pi.getBusinessKey()));
+      uniqueCheckParent.add(pi.getBusinessKey());
+    }
+    for (HistoricProcessInstance pi : subs) {
+      assert (pi.getBusinessKey() != null);
+      assert (pi.getBusinessKey().startsWith("BK_"));
+      assert (pi.getBusinessKey().length() > 3);
+      assert (!uniqueCheckSub.contains(pi.getBusinessKey()));
+      uniqueCheckSub.add(pi.getBusinessKey());
+    }
   }
 
   @Test

@@ -1,12 +1,14 @@
 # Demo Data Generator
 
-This project can simulate BPMN process instances while skipping service tasks and other delegation code. It's goal is to fill some meaningful load in the history tables -- normally used to showcase reporting features.
+This project simulates BPMN process instances while skipping service tasks and other delegation code and generating data for variables.
+It's goal is to fill some meaningful load in the history tables -- normally used to showcase reporting features.
 
-Given a single process definition key, it will work without modifying your model. Therefore, it creates a new version of your model (for technical reasons) and simulates on that model with default values for simulation interval, start and end times, waiting times for user tasks/message events/... and evenly distributed probabilities for outgoing sequence flows on XOR-gateways. The simulated process instances contain **no variables** at all. After that, the original model is deployed as another new version.
+Given a single process definition key, it will work without modifying your model.
+Therefore, it creates a new version of your model and simulates on that model.
+After that, the original model is deployed as another new version.
+Hence, check the *second last process definition version* for your generated process instances!
 
-Hence, check the *process definition version n-1* for your generated process instances!
-
-In order to use the generator you might want to [instrument your BPMN for tuning simulation behaviour](#instrument-your-bpmn-process) and start the Demo Data Generator via [webapplication](#start-via-webapplication) or [your own application](#start-in-your-own-application).
+In order to use the generator you might want to [instrument your BPMN for specifying simulation behaviour](#instrument-your-bpmn-process), [add config for creating variables during simulation](#add-content-generator) and start the Demo Data Generator via [webapplication](#start-via-webapplication) or [your own application](#start-in-your-own-application).
 
 To learn what models that simulator can handle and what it does with the elements, see [Supported BPMN elements](#supported-bpmn-elements)
 
@@ -16,6 +18,7 @@ Table of Contents
    * [How To](#how-to)
       * [Instrument your BPMN process](#instrument-your-bpmn-process)
          * [Add Probabilities to all outgoing Sequence Flows on XOR-Gateways](#add-probabilities-to-all-outgoing-sequence-flows-on-xor-gateways)
+         * [Add Content Generator for Variables](#add-content-generator)
          * [Add Distribution for Duration of Wait States (Tasks, Events)](#add-distribution-for-duration-of-wait-states-tasks-events)
       * [Start the Generation](#start-the-generation)
          * [Start via Webapplication](#start-via-webapplication)
@@ -44,7 +47,7 @@ To make this really easy there are [Element Templates](https://docs.camunda.org/
 
 Extension Attribute: `probability`
 
-If you put the extension `simulateKeepImplementation=true` to the corresponding XOR-gateway, the original condition of the sequence flows will be used in simulation. Use with caution.
+If you put the extension `simulateKeepImplementation=true` to the corresponding XOR-gateway, the actual condition expression of the sequence flows will be evaluated in simulation. Use with caution.
 
 ![Probability on Sequence Flow](decisionProbability.png)
 
@@ -59,7 +62,7 @@ for User Tasks, Receive Tasks,  External Tasks, Intermediate Message Events, Bou
 
 If you provide `durationMean` and `durationStd`, then a normal distribution for values with expected value `durationMean` and standard deviation `durationStd` is used for generating actual duration value. If you omit `durationStd`, then `durationMean` is used as constant value.
 
-### Add Hints to Service Tasks, Script Tasks, Business Rule Tasks, Send Tasks
+### Add Hints to Keep 
 
 If you put the extension `simulateKeepImplementation=true` to the corresponding activity, the original implementation (Expression, Delegate code, ...) including scripts in execution/task listeners and input/output parameters/mappings will be used in simulation. Use with caution.
 

@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -16,12 +17,16 @@ import java.util.stream.Stream;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.impl.ProcessEngineImpl;
+import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
+import org.camunda.bpm.engine.impl.persistence.entity.ProcessDefinitionEntity;
+import org.camunda.bpm.engine.impl.pvm.process.ActivityImpl;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.model.bpmn.Bpmn;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.impl.BpmnModelConstants;
+import org.camunda.bpm.model.bpmn.impl.BpmnParser;
 import org.camunda.bpm.model.bpmn.instance.BaseElement;
 import org.camunda.bpm.model.bpmn.instance.BoundaryEvent;
 import org.camunda.bpm.model.bpmn.instance.BusinessRuleTask;
@@ -45,6 +50,7 @@ import org.camunda.bpm.model.bpmn.instance.ServiceTask;
 import org.camunda.bpm.model.bpmn.instance.StartEvent;
 import org.camunda.bpm.model.bpmn.instance.SubProcess;
 import org.camunda.bpm.model.bpmn.instance.Task;
+import org.camunda.bpm.model.bpmn.instance.TimerEventDefinition;
 import org.camunda.bpm.model.bpmn.instance.UserTask;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaExecutionListener;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
@@ -52,9 +58,12 @@ import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperty;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaScript;
 import org.camunda.bpm.model.xml.ModelInstance;
 import org.camunda.bpm.model.xml.impl.util.IoUtil;
+import org.camunda.bpm.model.xml.instance.DomElement;
 import org.camunda.bpm.model.xml.instance.ModelElementInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.sun.mail.imap.protocol.MessageSet;
 
 public class DemoModelInstrumentator {
 
@@ -126,9 +135,9 @@ public class DemoModelInstrumentator {
     }
   }
 
-  protected void tweakProcessDefinition(String processDefinitionKey) {
+  protected StartEvent tweakProcessDefinition(String processDefinitionKey) {
     if (tweakedProcessKeys.contains(processDefinitionKey)) {
-      return;
+      return null;
     }
 
     LOG.info("tweak process definition " + processDefinitionKey);
@@ -149,17 +158,35 @@ public class DemoModelInstrumentator {
       }
     }
 
+    // check if startProcessInstanceByKey will work by finding the "default" start event
+    // see also org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse.selectInitial(List<ActivityImpl>, ProcessDefinitionEntity, Element)
+    StartEvent defaultStart = null;
     BpmnModelInstance bpmn = engine.getRepositoryService().getBpmnModelInstance(processDefinition.getId());
+    Process process = bpmn.getModelElementById(processDefinitionKey);
+    Collection<StartEvent> startEvents = process.getChildElementsByType(StartEvent.class);
+    if (startEvents.size() == 1) {
+      defaultStart = startEvents.iterator().next();
+    } else {
+      List<StartEvent> candidates = startEvents.stream().filter(se -> se.getEventDefinitions().isEmpty() || se.getEventDefinitions().iterator().next() instanceof TimerEventDefinition).collect(Collectors.toList());
+      if (candidates.size() == 1) {
+        defaultStart = candidates.get(0);
+      }
+    }
+    
+    if (defaultStart == null) {
+      throw new RuntimeException("Process with key '" + processDefinitionKey + "' has no default start event.");
+    }
 
+ 
     String originalBpmn = IoUtil.convertXmlDocumentToString(bpmn.getDocument());
     // do not do a validation here as it caused quite strange trouble
     LOG.debug("-----\n" + originalBpmn + "\n------");
 
     originalModels.put(processDefinitionKey + ".bpmn", originalBpmn);
 
-    Collection<Process> processes = bpmn.getModelElementsByType(Process.class);
-    processes.stream().forEach(process -> process.setAttributeValueNs("http://camunda.org/schema/1.0/bpmn", "versionTag", "demo-data-generator"));
-
+    // set data generator versionTag
+    bpmn.getModelElementsByType(Process.class).stream().forEach(p -> p.setAttributeValueNs("http://camunda.org/schema/1.0/bpmn", "versionTag", "demo-data-generator"));
+    
     Collection<ModelElementInstance> serviceTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(ServiceTask.class));
     Collection<ModelElementInstance> sendTasks = bpmn.getModelElementsByType(bpmn.getModel().getType(SendTask.class));
     // Collection<ModelElementInstance> receiveTasks =
@@ -307,6 +334,8 @@ public class DemoModelInstrumentator {
 
     // store all contained process keys for not tweaking them twice
     bpmn.getModelElementsByType(bpmn.getModel().getType(Process.class)).forEach(instance -> tweakedProcessKeys.add((((Process) instance).getId())));
+    
+    return defaultStart;
   }
 
   private void enableSetVariable(BaseElement element) {
