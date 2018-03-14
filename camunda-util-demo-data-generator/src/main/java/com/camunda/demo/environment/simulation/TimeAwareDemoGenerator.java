@@ -168,16 +168,10 @@ public class TimeAwareDemoGenerator {
 
   protected void simulate() {
     // refresh content data generator
-    ContentGeneratorRegistry.clear();
+    ContentGeneratorRegistry.init(engine);
 
     // get expression and content generator for business key
-    ContentGenerator contentGenerator = ContentGeneratorRegistry.getContentGenerator(startEvent);
     Optional<String> businessKeyExpression = DemoModelInstrumentator.readCamundaProperty(startEvent, "simulateSetBusinessKey");
-    Class<?> wrapperClass = ContentGeneratorRegistry.getWrapperClass(contentGenerator.getClass());
-    ExpressionManager expressionManager = ContentGeneratorRegistry.getExpressionManager(engine.getProcessEngineConfiguration(), wrapperClass);
-    ContentGeneratorRegistry.setGenerator(wrapperClass, contentGenerator);
-    Optional<ValueExpression> bkValueExpressionO = businessKeyExpression.map(expressionManager::createValueExpression);
-    ELContext elContext = expressionManager.getElContext(new ExecutionEntity());
 
     // if no explicit stop time is defined, we fix the current real wall clock
     // time as stop time
@@ -215,22 +209,11 @@ public class TimeAwareDemoGenerator {
         // start new instance
         ClockUtil.setCurrentTime(nextStartTime);
 
-        // generate business key
-        Optional<String> businessKey = Optional.empty();
-        if (bkValueExpressionO.isPresent()) {
-          ExpressionGetInvocation invocation = new ExpressionGetInvocation(bkValueExpressionO.get(), elContext, null);
-          try {
-            // ((ProcessEngineConfigurationImpl)
-            // engine.getProcessEngineConfiguration()).getDelegateInterceptor().handleInvocation(invocation);
-            invocation.proceed();
-            businessKey = Optional.of(invocation.getInvocationResult().toString());
-          } catch (Exception e) {
-            throw new RuntimeException("Could not evaluate business key expression", e);
-          }
-        }
-
         // fire!
-        ProcessInstance newInstance = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey, businessKey.orElse(null),
+        ProcessInstance newInstance = engine.getRuntimeService().startProcessInstanceByKey(processDefinitionKey,
+            businessKeyExpression
+                .map(bkE -> ContentGeneratorRegistry.evaluateJuelWithGenerator(bkE, ContentGeneratorRegistry.getContentGenerator(startEvent)).toString())
+                .orElse(null),
             Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
 
         runningProcessInstanceIds.add(newInstance.getId());

@@ -59,18 +59,14 @@ public class VariableSetterDelegate implements ExecutionListener {
         contentGenerator.setPercentDone(null);
       }
 
-      Class<?> wrapperClass = ContentGeneratorRegistry.getWrapperClass(contentGenerator.getClass());
-      ContentGeneratorRegistry.setGenerator(wrapperClass, contentGenerator);
-      ExpressionManager expressionManager = ContentGeneratorRegistry.getExpressionManager(Context.getProcessEngineConfiguration(), wrapperClass);
-
       // set variables
       Work[] workSet = getSetVariableValuesOrdered(element);
       for (Work work : workSet) {
 
         LOG.debug("Setting variable with name evaluated from '{}' to value evaluated from '{}'", work.variableExpression, work.valueExpression);
 
-        String variableName = ((String) expressionManager.createExpression(work.variableExpression).getValue(execution)).trim();
-        Object value = expressionManager.createExpression(work.valueExpression).getValue(execution);
+        String variableName = ContentGeneratorRegistry.evaluateJuelWithGenerator(work.variableExpression, contentGenerator, execution).toString().trim();
+        Object value = ContentGeneratorRegistry.evaluateJuelWithGenerator(work.valueExpression, contentGenerator, execution);
 
         LOG.debug("Setting variable '{}' to '{}'", variableName, value);
 

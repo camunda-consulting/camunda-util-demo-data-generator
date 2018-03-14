@@ -2,11 +2,13 @@ package com.camunda.demo.environment.simulation;
 
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineAssertions.init;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineAssertions.processEngine;
+import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.execute;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.historyService;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.repositoryService;
 import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.runtimeService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
@@ -15,12 +17,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.camunda.bpm.engine.history.HistoricProcessInstance;
 import org.camunda.bpm.engine.history.HistoricProcessInstanceQuery;
 import org.camunda.bpm.engine.history.HistoricVariableInstance;
+import org.camunda.bpm.engine.impl.context.Context;
+import org.camunda.bpm.engine.impl.interceptor.Command;
+import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
+import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.engine.variable.value.TypedValue;
@@ -67,6 +74,22 @@ public class DemoDataGeneratorTest {
   @Before
   public void setup() {
     init(rule.getProcessEngine());
+
+    List<String> list = rule.getHistoryService().createHistoricProcessInstanceQuery().list().stream().map(HistoricProcessInstance::getId)
+        .collect(Collectors.toList());
+    if (!list.isEmpty()) {
+      rule.getProcessEngineConfiguration().getCommandExecutorTxRequired().execute(new Command<Object>() {
+
+        @Override
+        public Object execute(CommandContext commandContext) {
+          commandContext.getHistoricProcessInstanceManager().deleteHistoricProcessInstanceByIds(list);
+          return null;
+        }
+      });
+    }
+
+    // execute(job);
+
   }
 
   @Test
@@ -80,12 +103,6 @@ public class DemoDataGeneratorTest {
         .includeWeekend(true) //
         .timeBetweenStartsBusinessDays(6000.0, 100.0); // every 6000 seconds
     generator.run();
-
-    // ProcessInstance pi =
-    // runtimeService().startProcessInstanceByKey("simulate");
-    // assertThat(pi).task();
-    // complete(task());
-    // assertThat(pi).isEnded();
   }
 
   @Test
@@ -125,6 +142,8 @@ public class DemoDataGeneratorTest {
     List<HistoricProcessInstance> subs = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
         .processDefinitionKey("businessKeySub").list();
 
+    assert (parents.size() == subs.size());
+
     Set<String> uniqueCheckParent = new HashSet<>();
     Set<String> uniqueCheckSub = new HashSet<>();
 
@@ -162,6 +181,8 @@ public class DemoDataGeneratorTest {
     List<HistoricProcessInstance> subs = processEngine().getHistoryService().createHistoricProcessInstanceQuery().finished()
         .processDefinitionKey("businessKeySub").list();
 
+    assert (parents.size() == subs.size());
+
     Set<String> uniqueCheckParent = new HashSet<>();
     Set<String> uniqueCheckSub = new HashSet<>();
 
@@ -176,7 +197,7 @@ public class DemoDataGeneratorTest {
       assert (pi.getBusinessKey() != null);
       assert (pi.getBusinessKey().startsWith("BK_"));
       assert (pi.getBusinessKey().length() > 3);
-      assert (!uniqueCheckSub.contains(pi.getBusinessKey()));
+      assertTrue("Sub bk doubled: " + pi.getBusinessKey(), !uniqueCheckSub.contains(pi.getBusinessKey()));
       uniqueCheckSub.add(pi.getBusinessKey());
     }
   }
