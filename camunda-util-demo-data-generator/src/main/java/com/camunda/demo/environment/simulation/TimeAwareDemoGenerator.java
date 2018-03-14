@@ -110,7 +110,11 @@ public class TimeAwareDemoGenerator {
     }
   }
 
-  public void run() {
+  /**
+   * 
+   * @return Number of started instances of the main process definition.
+   */
+  public long run() {
     if (runningInstance != null) {
       throw new RuntimeException("There can only be one! (running TimeAwareDemoGenerator)");
     }
@@ -122,7 +126,7 @@ public class TimeAwareDemoGenerator {
 
       if (count > 0 && (!runAlways)) {
         LOG.info("Skipped data generation because already generated data found. Set simulateRunAlways=true in bpmn to generate data despite that.");
-        return;
+        return 0;
       }
 
       instrumentator = new DemoModelInstrumentator(engine, originalProcessApplication, simulatingProcessApplication);
@@ -143,7 +147,7 @@ public class TimeAwareDemoGenerator {
         }
 
         try {
-          simulate();
+          return simulate();
         } finally {
           ClockUtil.reset();
           instrumentator.restoreOriginalModels();
@@ -166,7 +170,11 @@ public class TimeAwareDemoGenerator {
     }
   }
 
-  protected void simulate() {
+  /**
+   * 
+   * @return Number of started instances of the main process definition.
+   */
+  protected long simulate() {
     // refresh content data generator
     ContentGeneratorRegistry.init(engine);
 
@@ -188,6 +196,7 @@ public class TimeAwareDemoGenerator {
     lastTimeToStart.set(Calendar.SECOND, 0);
     lastTimeToStart.set(Calendar.MILLISECOND, 0);
 
+    long startedInstances = 0;
     Set<String> runningProcessInstanceIds = new TreeSet<>();
     Set<String> processInstanceIdsAlreadyReachedCurrentTime = new HashSet<>();
     nextStartTime = calculateNextStartTime(null, lastTimeToStart.getTime());
@@ -216,6 +225,7 @@ public class TimeAwareDemoGenerator {
                 .orElse(null),
             Variables.putValue(DemoDataGenerator.VAR_NAME_GENERATED, true));
 
+        startedInstances++;
         runningProcessInstanceIds.add(newInstance.getId());
         nextStartTime = calculateNextStartTime(nextStartTime, lastTimeToStart.getTime());
 
@@ -228,6 +238,7 @@ public class TimeAwareDemoGenerator {
       }
       candidate.get().execute(engine);
     }
+    return startedInstances;
   }
 
   private Date calculateNextStartTime(Date previousStartTime, Date latestStartTime) {

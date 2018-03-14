@@ -22,24 +22,49 @@ public class DemoDataGenerator {
   public static final String VAR_NAME_GENERATED = "demo-data-generated";
   private static final Logger log = Logger.getLogger(DemoDataGenerator.class.getName());
 
-  public static void autoGenerateAll(ProcessEngine engine, ProcessApplicationReference processApplicationReference, String... additionalModelKeys) {
+  /**
+   * 
+   * @param engine
+   * @param processApplicationReference
+   * @param additionalModelKeys
+   * @return Number of started instances of the main process definitions.
+   */
+  public static long autoGenerateAll(ProcessEngine engine, ProcessApplicationReference processApplicationReference, String... additionalModelKeys) {
     List<ProcessDefinition> processDefinitions = engine.getRepositoryService().createProcessDefinitionQuery().latestVersion().list();
+    long startedInstances = 0;
     for (ProcessDefinition processDefinition : processDefinitions) {
-      autoGenerateFor(engine, processDefinition, processApplicationReference, additionalModelKeys);
+      startedInstances += autoGenerateFor(engine, processDefinition, processApplicationReference, additionalModelKeys);
     }
+    return startedInstances;
   }
 
-  public static void autoGenerateFor(ProcessEngine engine, String processDefinitionKey, ProcessApplicationReference processApplicationReference,
+  /**
+   * 
+   * @param engine
+   * @param processDefinitionKey
+   * @param processApplicationReference
+   * @param additionalModelKeys
+   * @return Number of started instances of the main process definition.
+   */
+  public static long autoGenerateFor(ProcessEngine engine, String processDefinitionKey, ProcessApplicationReference processApplicationReference,
       String... additionalModelKeys) {
     ProcessDefinition processDefinition = engine.getRepositoryService().createProcessDefinitionQuery().processDefinitionKey(processDefinitionKey)
         .latestVersion().singleResult();
     if (processDefinition == null) {
       throw new RuntimeException("Could not find process definition with key '" + processDefinitionKey + "'");
     }
-    autoGenerateFor(engine, processDefinition, processApplicationReference, additionalModelKeys);
+    return autoGenerateFor(engine, processDefinition, processApplicationReference, additionalModelKeys);
   }
 
-  public static void autoGenerateFor(ProcessEngine engine, ProcessDefinition processDefinition, ProcessApplicationReference processApplicationReference,
+  /**
+   * 
+   * @param engine
+   * @param processDefinition
+   * @param processApplicationReference
+   * @param additionalModelKeys
+   * @return Number of started instances of the main process definition.
+   */
+  public static long autoGenerateFor(ProcessEngine engine, ProcessDefinition processDefinition, ProcessApplicationReference processApplicationReference,
       String... additionalModelKeys) {
     log.info("check auto generation for " + processDefinition);
 
@@ -56,7 +81,7 @@ public class DemoDataGenerator {
     log.info("simulation properties set - auto generation applied (" + numberOfDaysInPast + " days in past, time between mean: "
         + timeBetweenStartsBusinessDaysMean + " and Standard Deviation: " + timeBetweenStartsBusinessDaysSd);
 
-    new TimeAwareDemoGenerator(engine, processApplicationReference) //
+    return new TimeAwareDemoGenerator(engine, processApplicationReference) //
         .processDefinitionKey(processDefinition.getKey()) //
         .additionalModelKeys(additionalModelKeys) //
         .numberOfDaysInPast(Integer.valueOf(numberOfDaysInPast)) //
