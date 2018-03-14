@@ -65,6 +65,7 @@ public final class ContentGeneratorRegistry {
    * Can be used multiple times to reset cache.
    * 
    * @param engine
+   *          used for expression manager
    */
   public static void init(ProcessEngine engine) {
     contentGeneratorRegistry.clear();
@@ -92,7 +93,8 @@ public final class ContentGeneratorRegistry {
    * Each activity gets its own cached singleton generator instance.
    * 
    * @param element
-   * @return
+   *          each bpmn-element gets its own generator instance
+   * @return a newly created or the cached content generator
    */
   public static ContentGenerator getContentGenerator(BaseElement element) {
     ContentGenerator contentGenerator = contentGeneratorRegistry.get(element);
@@ -130,7 +132,9 @@ public final class ContentGeneratorRegistry {
    * class. These static methods call the appropriate generator method on the
    * generator object set as static field "generator" of the returned class.
    * 
-   * @return
+   * @param generator
+   *          the generator to build the wrapper for
+   * @return a static wrapper class that refers to the given generator
    */
   public static Class<?> getWrapperClass(ContentGenerator generator) {
     Class<?> generatorClass = generator.getClass();

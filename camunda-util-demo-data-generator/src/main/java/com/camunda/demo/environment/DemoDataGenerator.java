@@ -1,15 +1,12 @@
 package com.camunda.demo.environment;
 
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
 
-import org.camunda.bpm.BpmPlatform;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.ProcessEngine;
-import org.camunda.bpm.engine.repository.CaseDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.instance.camunda.CamundaProperties;
@@ -22,13 +19,6 @@ public class DemoDataGenerator {
   public static final String VAR_NAME_GENERATED = "demo-data-generated";
   private static final Logger log = Logger.getLogger(DemoDataGenerator.class.getName());
 
-  /**
-   * 
-   * @param engine
-   * @param processApplicationReference
-   * @param additionalModelKeys
-   * @return Number of started instances of the main process definitions.
-   */
   public static long autoGenerateAll(ProcessEngine engine, ProcessApplicationReference processApplicationReference, String... additionalModelKeys) {
     List<ProcessDefinition> processDefinitions = engine.getRepositoryService().createProcessDefinitionQuery().latestVersion().list();
     long startedInstances = 0;
@@ -38,14 +28,6 @@ public class DemoDataGenerator {
     return startedInstances;
   }
 
-  /**
-   * 
-   * @param engine
-   * @param processDefinitionKey
-   * @param processApplicationReference
-   * @param additionalModelKeys
-   * @return Number of started instances of the main process definition.
-   */
   public static long autoGenerateFor(ProcessEngine engine, String processDefinitionKey, ProcessApplicationReference processApplicationReference,
       String... additionalModelKeys) {
     ProcessDefinition processDefinition = engine.getRepositoryService().createProcessDefinitionQuery().processDefinitionKey(processDefinitionKey)
@@ -56,14 +38,6 @@ public class DemoDataGenerator {
     return autoGenerateFor(engine, processDefinition, processApplicationReference, additionalModelKeys);
   }
 
-  /**
-   * 
-   * @param engine
-   * @param processDefinition
-   * @param processApplicationReference
-   * @param additionalModelKeys
-   * @return Number of started instances of the main process definition.
-   */
   public static long autoGenerateFor(ProcessEngine engine, ProcessDefinition processDefinition, ProcessApplicationReference processApplicationReference,
       String... additionalModelKeys) {
     log.info("check auto generation for " + processDefinition);

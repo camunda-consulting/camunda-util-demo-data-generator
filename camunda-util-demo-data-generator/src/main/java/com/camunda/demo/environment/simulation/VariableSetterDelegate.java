@@ -25,7 +25,7 @@ public class VariableSetterDelegate implements ExecutionListener {
    */
   private static Map<BaseElement, Work[]> setVariablePropertyCache = new HashMap<>();
 
-  /**
+  /*
    * This thing is completely synchronized, because we rely on some static
    * fields set for each execution. If used during executing
    * TimeAwareDemoGenerator, this does not harm since it simulates strictly
@@ -75,13 +75,10 @@ public class VariableSetterDelegate implements ExecutionListener {
     }
   }
 
-  /**
+  /*
    * Cached read of "simulateSetVariable"-extensions for the given element.
-   * 
-   * @param element
-   * @return
    */
-  public static Work[] getSetVariableValuesOrdered(BaseElement element) {
+  private static Work[] getSetVariableValuesOrdered(BaseElement element) {
     Work[] values = setVariablePropertyCache.get(element);
     if (values == null) {
       String[] expressions = DemoModelInstrumentator.readCamundaPropertyMulti(element, "simulateSetVariable").toArray(new String[] {});

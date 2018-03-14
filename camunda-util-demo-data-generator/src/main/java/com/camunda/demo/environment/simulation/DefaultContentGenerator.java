@@ -30,12 +30,13 @@ public class DefaultContentGenerator extends ContentGenerator {
   }
 
   /**
-   * Treats null as false. Treats numbers to be true iff > 0. Treats strings to
+   * Treats null as false. Treats numbers to be true iff greater than 0. Treats strings to
    * be true if their lower-case version equals "1", "true" or "yes". Anything
    * unknown is treated as false.
    * 
    * @param o
-   * @return
+   *          some object
+   * @return true or false
    */
   public Boolean toBoolean(Object o) {
     if (o == null)
@@ -54,7 +55,8 @@ public class DefaultContentGenerator extends ContentGenerator {
    * else will result in null.
    * 
    * @param o
-   * @return
+   *          some object
+   * @return the parsed date
    */
   public Date toDate(Object o) {
     if (o == null)
@@ -140,7 +142,7 @@ public class DefaultContentGenerator extends ContentGenerator {
   /**
    * Female/male 50:50
    * 
-   * @return
+   * @return some first name
    */
   public String firstname() {
     return Math.random() < 0.5 ? firstnameFemale() : firstnameMale();
@@ -178,8 +180,10 @@ public class DefaultContentGenerator extends ContentGenerator {
    * simulation time.
    * 
    * @param minAge
+   *          minimum age
    * @param maxAge
-   * @return
+   *          maximum age
+   * @return a birthdate
    */
   public Date uniformBirthdate(int minAge, int maxAge) {
     Calendar calMin = Calendar.getInstance();
@@ -250,44 +254,52 @@ public class DefaultContentGenerator extends ContentGenerator {
   }
 
   /**
-   * As always min <= returnValue < max.
+   * As always min lq returnValue le max.
    * 
    * @param min
+   *          minimum value
    * @param max
-   * @return
+   *          maximum value
+   * @return a random value
    */
   public Short uniformShort(short min, short max) {
     return (short) (min + (short) Math.floor(((Math.random() * (max - min)))));
   }
 
   /**
-   * As always min <= returnValue < max.
+   * As always min lq returnValue le max.
    * 
    * @param min
+   *          minimum value
    * @param max
-   * @return
+   *          maximum value
+   * @return a random value
    */
   public Integer uniformInt(int min, int max) {
     return min + (int) Math.floor(((Math.random() * (max - min))));
   }
 
   /**
-   * As always min <= returnValue < max.
+   * As always min lq returnValue le max.
    * 
    * @param min
+   *          minimum value
    * @param max
-   * @return
+   *          maximum value
+   * @return a random value
    */
   public Long uniformLong(long min, long max) {
     return min + (long) Math.floor(((Math.random() * (max - min))));
   }
 
   /**
-   * As always min <= returnValue < max.
+   * As always min lq returnValue le max.
    * 
    * @param min
+   *          minimum value
    * @param max
-   * @return
+   *          maximum value
+   * @return a random value
    */
   public Double uniformDouble(double min, double max) {
     return min + Math.random() * (max - min);
