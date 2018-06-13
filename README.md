@@ -106,7 +106,7 @@ Add this dependency to your project (available via Maven Central):
   <dependency>
     <groupId>com.camunda.consulting.util</groupId>
     <artifactId>camunda-util-demo-data-generator</artifactId>
-    <version>0.4.0</version>    
+    <version>0.5.3</version>    
   </dependency>
 ```
 
@@ -140,7 +140,7 @@ public class InvoiceProcessApplication extends ServletProcessApplication {
    */
   @PostDeploy
   public void startFirstProcess(ProcessEngine processEngine) {
-    DemoDataGenerator.autoGenerateFor(processEngine, "rechnungseingang");
+    DemoDataGenerator.autoGenerateFor(processEngine, "rechnungseingang", getReference());
   }
 ```
 
