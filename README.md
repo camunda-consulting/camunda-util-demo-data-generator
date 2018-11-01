@@ -191,6 +191,8 @@ This list is hopefully consistend and correct but certainly not complete [:)](ht
 * Message Start Event (will never be triggered)
 * Timer Start Event (will never be triggered)
 * Conditional Events (we have no data)
+* Multi-Instance Activities (collection expression will be evaluated => switch to loop cardinality)
+* Connectors (will not be skipped => switch to expression `${true}`)
 
 # Environment Restrictions
 
@@ -199,9 +201,9 @@ Built and tested against Camunda BPM version 7.7.0.
 
 # Improvements Backlog
 
-* Nobody likes to enter weeks or months as big numbers of seconds
 * implements meaningfull behaviour for Non-Working BPMN elements
 * move start-behaviour from process to start event -> allows multiple model to be started while simulation
+* Multi-Instance loop cardinality mean and standard deviation
 
 # License
 
