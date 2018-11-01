@@ -130,5 +130,26 @@
 	      }
 	    }
 	  ]
+	},
+	{
+	  "name": "Demo Data Generator: Keep Implementation",
+	  "id": "com.camunda.demo.environment.simulateKeepImplementation",
+	  "appliesTo": [
+	    "bpmn:ServiceTask",
+	    "bpmn:SendTask",
+	    "bpmn:BusinessRuleTask"
+	  ],
+	  "properties": [
+	    {
+	      "label": "Keep Implementation",
+	      "type": "Boolean",
+	      "value": true,
+	      "editable": true,
+	      "binding": {
+	        "type": "camunda:property",
+	        "name": "simulateKeepImplementation"
+	      }
+	    }
+	  ]
 	}
 ]
