@@ -10,6 +10,7 @@
 	    {
 	      "label": "Number of Days in Past to Simulate",
 	      "type": "Text",
+	      "value": "14",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -19,6 +20,7 @@
 	    {
 	      "label": "Include Weekends",
 	      "type": "Boolean",
+	      "value": false,
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -28,6 +30,7 @@
 	    {
 	      "label": "Business Day Starts at (hh:mm)",
 	      "type": "Text",
+	      "value": "09:00",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -37,6 +40,7 @@
 	    {
 	      "label": "Business Day Ends at (hh:mm)",
 	      "type": "Text",
+	      "value": "17:00",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -46,6 +50,7 @@
 	    {
 	      "label": "Time Between Starts Mean (ISO8601 duration or Seconds)",
 	      "type": "Text",
+	      "value": "1000",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -55,6 +60,7 @@
 	    {
 	      "label": "Time Between Starts Standard Deviation (ISO8601 duration or Seconds)",
 	      "type": "Text",
+	      "value": "2000",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -64,6 +70,7 @@
 	    {
 	      "label": "Run even if there is already generated data",
 	      "type": "Boolean",
+	      "value": false,
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -73,7 +80,7 @@
 	  ]
 	},
 	{
-	  "name": "Demo Data Generator Attribute",
+	  "name": "Demo Data Generator: Probability",
 	  "id": "com.camunda.demo.environment.probability",
 	  "appliesTo": [
 	    "bpmn:SequenceFlow"
@@ -82,6 +89,7 @@
 	    {
 	      "label": "Probability",
 	      "type": "Text",
+	      "value": "50",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -91,7 +99,7 @@
 	  ]
 	},
 	{
-	  "name": "Demo Data Generator",
+	  "name": "Demo Data Generator: Duration",
 	  "id": "com.camunda.demo.environment.waitstate",
 	  "appliesTo": [
 	    "bpmn:UserTask",
@@ -104,6 +112,7 @@
 	    {
 	      "label": "Duration Mean (ISO8601 duration or Seconds)",
 	      "type": "Text",
+	      "value": "P1DT2H10M",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -113,6 +122,7 @@
 	    {
 	      "label": "Duration Standard Deviation (ISO8601 duration or Seconds)",
 	      "type": "Text",
+	      "value": "PT4H",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
