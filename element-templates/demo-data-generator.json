@@ -50,7 +50,7 @@
 	    {
 	      "label": "Time Between Starts Mean (ISO8601 duration or Seconds)",
 	      "type": "Text",
-	      "value": "1000",
+	      "value": "PT15M",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
@@ -60,7 +60,7 @@
 	    {
 	      "label": "Time Between Starts Standard Deviation (ISO8601 duration or Seconds)",
 	      "type": "Text",
-	      "value": "2000",
+	      "value": "PT30M",
 	      "editable": true,
 	      "binding": {
 	        "type": "camunda:property",
